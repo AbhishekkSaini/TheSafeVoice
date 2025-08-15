@@ -17,20 +17,19 @@ export function mountAuthUiHooks() {
             const password = document.getElementById('password')?.value;
             const firstName = document.getElementById('firstName')?.value?.trim();
             const lastName = document.getElementById('lastName')?.value?.trim();
-            const phone = document.getElementById('phone')?.value?.trim();
+            // Get raw 10-digit phone and map to +91XXXXXXXXXX
+            const phone10 = document.getElementById('phone10')?.value?.trim();
 
             if (!email || !password) return alert('Email and password required');
-            if (!phone) return alert('Phone number required');
+            if (!phone10) return alert('Phone number required');
 
             // India-only (+91) phone normalization and validation
             const normalizePhoneIndia = (input) => {
                 const digits = (input || '').replace(/\D/g, '');
-                // If user typed 10 digits, prefix 91
                 if (digits.length === 10) return '+91' + digits;
-                if (digits.length === 12 && digits.startsWith('91')) return '+' + digits;
                 return null;
             };
-            const normalizedPhone = normalizePhoneIndia(phone);
+            const normalizedPhone = normalizePhoneIndia(phone10);
             if (!normalizedPhone) return alert('Enter a valid Indian mobile number (10 digits or +91XXXXXXXXXX).');
             // Indian mobile numbers start with 6-9
             if (!/^\+916|\+917|\+918|\+919/.test(normalizedPhone.slice(0,4)) && !/^\+91[6-9][0-9]{9}$/.test(normalizedPhone)) {
