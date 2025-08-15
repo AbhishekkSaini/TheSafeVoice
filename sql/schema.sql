@@ -225,18 +225,63 @@ grant execute on function public.upvote_post(uuid) to anon, authenticated;
 grant execute on function public.flag_post(uuid) to anon, authenticated;
 
 -- Uniqueness constraint for phone numbers (enforced at DB level)
+-- Normalize helpers and hard unique constraints for duplicates protection
+create or replace function public.normalize_email(p text)
+returns text language sql immutable as $$ select nullif(lower(trim(p)),'') $$;
+
+create or replace function public.normalize_phone_india(p text)
+returns text language sql immutable as $$ select case when p is null then null else '+91' || right(regexp_replace(p,'[^0-9]+','','g'),10) end $$;
+
+alter table public.profiles add column if not exists email_normalized text;
+alter table public.profiles add column if not exists phone_normalized text;
+
+create or replace function public.set_normalized_profile_keys()
+returns trigger language plpgsql as $$
+begin
+  new.email_normalized := public.normalize_email(new.email);
+  new.phone_normalized := public.normalize_phone_india(new.phone);
+  return new;
+end; $$;
+
+drop trigger if exists trg_profiles_norm on public.profiles;
+create trigger trg_profiles_norm before insert or update on public.profiles
+for each row execute function public.set_normalized_profile_keys();
+
 do $$ begin
-    if not exists (
-        select 1 from pg_indexes where schemaname = 'public' and indexname = 'profiles_phone_unique'
-    ) then
-        create unique index profiles_phone_unique on public.profiles (phone) where phone is not null;
-    end if;
-    if not exists (
-        select 1 from pg_indexes where schemaname = 'public' and indexname = 'profiles_email_unique'
-    ) then
-        create unique index profiles_email_unique on public.profiles (email) where email is not null;
-    end if;
+  if not exists (select 1 from pg_indexes where schemaname='public' and indexname='profiles_email_unique_ci') then
+    create unique index profiles_email_unique_ci on public.profiles(email_normalized) where email_normalized is not null;
+  end if;
+  if not exists (select 1 from pg_indexes where schemaname='public' and indexname='profiles_phone_unique_norm') then
+    create unique index profiles_phone_unique_norm on public.profiles(phone_normalized) where phone_normalized is not null;
+  end if;
 end $$;
+
+alter table public.profiles add constraint phone_india_format
+  check (phone_normalized is null or phone_normalized ~ '^\+91[6-9][0-9]{9}$');
+
+create or replace function public.upsert_profile_secure(
+  p_id uuid,
+  p_email text,
+  p_phone text,
+  p_display_name text default null
+)
+returns public.profiles
+language plpgsql security definer set search_path=public as $$
+declare rec public.profiles;
+begin
+  insert into public.profiles(id,email,phone,display_name)
+  values(p_id,p_email,p_phone,coalesce(p_display_name,''))
+  on conflict (id) do update
+    set email=excluded.email,
+        phone=excluded.phone,
+        display_name=excluded.display_name
+  returning * into rec;
+  return rec;
+exception when unique_violation then
+  raise exception 'Account already exists with this email or mobile number' using errcode='23505';
+end; $$;
+
+grant execute on function public.upsert_profile_secure(uuid,text,text,text) to anon, authenticated;
 
 -- Ensure anon can read the posts_view and PostgREST sees it
 grant select on public.posts_view to anon, authenticated;

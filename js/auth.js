@@ -41,22 +41,21 @@ export function mountAuthUiHooks() {
             submitBtn.textContent = 'Creating account...';
             submitBtn.disabled = true;
 
-            // Prevent duplicate phone before creating auth user (best effort)
+            // Prevent duplicate email OR phone before creating auth user (best effort)
             try {
-                const { data: existingPhone } = await supabase
+                const { data: dup } = await supabase
                     .from('profiles')
                     .select('id')
-                    .eq('phone', normalizedPhone)
+                    .or(`email_normalized.eq.${emailCi},phone_normalized.eq.${normalizedPhone}`)
                     .limit(1);
-                if ((existingPhone || []).length > 0) {
-                    alert('This phone number is already registered. Please log in or use a different number.');
+                if ((dup || []).length > 0) {
+                    alert('Account already exists with this email or mobile number');
                     submitBtn.textContent = original;
                     submitBtn.disabled = false;
                     return;
                 }
             } catch (e) {
-                // If profiles table is not yet created, skip the pre-check and continue signup
-                console.warn('Skipping phone pre-check (profiles not ready yet).');
+                console.warn('Skipping duplicate pre-check (profiles not ready yet).');
             }
 
             const { data, error } = await supabase.auth.signUp({
@@ -75,8 +74,23 @@ export function mountAuthUiHooks() {
                 // Save intended profile data for after first login (when session exists)
                 try {
                     const displayName = [firstName, lastName].filter(Boolean).join(' ').trim();
-                    localStorage.setItem('sv_pending_profile', JSON.stringify({ displayName, phone: normalizedPhone }));
-                } catch {}
+                    // Enforce uniqueness at backend immediately; if it throws 23505 we show duplicate message
+                    const userId = signData?.user?.id || data?.user?.id;
+                    if (userId) {
+                        const { error: rpcErr } = await supabase.rpc('upsert_profile_secure', {
+                            p_id: userId,
+                            p_email: emailCi,
+                            p_phone: normalizedPhone,
+                            p_display_name: displayName
+                        });
+                        if (rpcErr) throw rpcErr;
+                    }
+                } catch (rpcErr) {
+                    alert(rpcErr.message || 'Account already exists with this email or mobile number');
+                    submitBtn.textContent = original;
+                    submitBtn.disabled = false;
+                    return;
+                }
                 window.location.href = 'login.html';
             }
             submitBtn.textContent = original;
