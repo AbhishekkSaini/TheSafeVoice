@@ -283,6 +283,37 @@ end; $$;
 
 grant execute on function public.upsert_profile_secure(uuid,text,text,text) to anon, authenticated;
 
+-- Preflight checker to prevent sending email if user or phone already taken
+create or replace function public.email_or_phone_available(
+  p_email text,
+  p_phone text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  exists_email boolean := false;
+  exists_phone boolean := false;
+begin
+  -- case-insensitive email check in auth.users
+  select exists(
+    select 1 from auth.users u
+    where lower(trim(u.email)) = lower(trim(p_email))
+  ) into exists_email;
+
+  -- normalized phone check in profiles (if any)
+  select exists(
+    select 1 from public.profiles p
+    where p.phone_normalized = public.normalize_phone_india(p_phone)
+  ) into exists_phone;
+
+  return not (exists_email or exists_phone);
+end; $$;
+
+grant execute on function public.email_or_phone_available(text,text) to anon, authenticated;
+
 -- Ensure anon can read the posts_view and PostgREST sees it
 grant select on public.posts_view to anon, authenticated;
 grant usage on schema public to anon, authenticated;
