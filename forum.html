@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TheSafeVoice Forum</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="font-sans bg-gradient-to-br from-slate-50 to-orange-50 min-h-screen">
+    <nav class="bg-white/90 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-orange-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
+                        <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <a href="index.html" class="text-xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">TheSafeVoice</a>
+                </div>
+                <div class="hidden md:flex items-center space-x-6">
+                    <a href="forum.html" class="text-gray-800 font-semibold">Forum</a>
+                    <a href="resources.html" class="text-gray-700 hover:text-orange-600">Resources</a>
+                    <a href="profile.html" class="text-gray-700 hover:text-orange-600">Profile</a>
+                    <button id="sosBtn" class="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-semibold">SOS</button>
+                    <button id="logoutBtn" class="px-4 py-2 text-gray-600 hover:text-gray-700">Logout</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid lg:grid-cols-3 gap-8">
+            <section class="lg:col-span-2">
+                <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-4">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Create a post</h2>
+                    <form id="post-composer" class="space-y-4">
+                        <input id="composer-title" class="form-input" type="text" placeholder="Title" required />
+                        <textarea id="composer-body" class="form-input" rows="5" placeholder="What's on your mind?" required></textarea>
+                        <div class="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-3 md:space-y-0">
+                            <select id="composer-category" class="form-input md:w-64"></select>
+                            <label class="flex items-center space-x-2 text-sm text-gray-700"><input id="composer-anon" type="checkbox" class="custom-checkbox" /> <span>Post anonymously</span></label>
+                            <button type="submit" class="btn-primary">Post</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="filter" class="w-4 h-4 text-gray-600"></i>
+                        <select id="filter-category" class="form-input md:w-64"></select>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="search" class="w-4 h-4 text-gray-600"></i>
+                        <input id="filter-q" type="search" placeholder="Search posts" class="form-input md:w-80" />
+                    </div>
+                </div>
+
+                <div id="forum-feed"></div>
+            </section>
+            <aside>
+                <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-4">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Categories</h3>
+                    <div id="forum-categories" class="space-y-3"></div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Safety Pledge</h3>
+                    <p class="text-sm text-gray-600">Be respectful. Protect privacy. No harassment. Content may be moderated.</p>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <script src="js/config.js"></script>
+    <script type="module">
+        import { mountForum } from './js/forum.js';
+        import { mountSosButton } from './js/sos.js';
+        import { mountAuthUiHooks } from './js/auth.js';
+        mountAuthUiHooks();
+        mountSosButton('#sosBtn');
+        window.lucide && window.lucide.createIcons();
+        mountForum();
+    </script>
+</body>
+</html>
+
+
