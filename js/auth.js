@@ -41,21 +41,18 @@ export function mountAuthUiHooks() {
             submitBtn.textContent = 'Creating account...';
             submitBtn.disabled = true;
 
-            // Prevent duplicate email OR phone before creating auth user (best effort)
+            // Preflight duplication check via RPC (blocks before sending email)
             try {
-                const { data: dup } = await supabase
-                    .from('profiles')
-                    .select('id')
-                    .or(`email_normalized.eq.${emailCi},phone_normalized.eq.${normalizedPhone}`)
-                    .limit(1);
-                if ((dup || []).length > 0) {
+                const { data: ok, error: availErr } = await supabase.rpc('email_or_phone_available', { p_email: emailCi, p_phone: normalizedPhone });
+                if (availErr) console.warn('availability check error', availErr);
+                if (ok === false) {
                     alert('Account already exists with this email or mobile number');
                     submitBtn.textContent = original;
                     submitBtn.disabled = false;
                     return;
                 }
             } catch (e) {
-                console.warn('Skipping duplicate pre-check (profiles not ready yet).');
+                console.warn('Availability RPC failed; proceeding with caution');
             }
 
             const { data, error } = await supabase.auth.signUp({
