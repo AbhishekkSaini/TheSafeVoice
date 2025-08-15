@@ -17,8 +17,9 @@ export function mountAuthUiHooks() {
             const password = document.getElementById('password')?.value;
             const firstName = document.getElementById('firstName')?.value?.trim();
             const lastName = document.getElementById('lastName')?.value?.trim();
-            // Get raw 10-digit phone and map to +91XXXXXXXXXX
-            const phone10 = document.getElementById('phone10')?.value?.trim();
+            // Get raw 10-digit phone and map to +91XXXXXXXXXX (fallback to old id="phone")
+            const phoneInputEl = document.getElementById('phone10') || document.getElementById('phone');
+            const phone10 = phoneInputEl ? String(phoneInputEl.value || '').trim() : '';
 
             if (!email || !password) return alert('Email and password required');
             if (!phone10) return alert('Phone number required');
