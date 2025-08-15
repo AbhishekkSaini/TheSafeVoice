@@ -138,7 +138,8 @@ export function mountAuthUiHooks() {
     }
 
     // OAuth providers
-    const redirectTo = window.location.origin + '/Safevoice/login.html';
+    // Use robust relative URL so it works on GitHub Pages repo subpaths and locally
+    const redirectTo = new URL('login.html', window.location.href).href;
     async function signInWithProvider(provider) {
         try {
             const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
