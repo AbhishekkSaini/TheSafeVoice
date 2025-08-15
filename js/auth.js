@@ -5,7 +5,8 @@ export function mountAuthUiHooks() {
 
     const signupForm = document.getElementById('signupForm');
     const loginForm = document.getElementById('loginForm');
-    const logoutBtn = document.getElementById('logoutBtn');
+    // Support multiple logout buttons across pages (desktop + mobile)
+    const logoutBtns = document.querySelectorAll('[id="logoutBtn"], .logoutBtn');
     const loginGoogle = document.getElementById('loginGoogle');
 
     const loginFacebook = document.getElementById('loginFacebook');
@@ -15,10 +16,10 @@ export function mountAuthUiHooks() {
     async function updateLogoutVisibility() {
         try {
             const user = await getUser();
-            const btn = document.getElementById('logoutBtn');
-            if (btn) {
+            logoutBtns.forEach((btn) => {
+                if (!btn) return;
                 if (user) btn.classList.remove('hidden'); else btn.classList.add('hidden');
-            }
+            });
         } catch {}
     }
 
@@ -144,12 +145,12 @@ export function mountAuthUiHooks() {
         });
     }
 
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
-            await supabase.auth.signOut();
+    if (logoutBtns && logoutBtns.length) {
+        logoutBtns.forEach((btn) => btn.addEventListener('click', async () => {
+            try { await supabase.auth.signOut(); } catch {}
             localStorage.setItem('isLoggedIn', 'false');
             window.location.href = 'index.html';
-        });
+        }));
     }
 
     // OAuth providers
