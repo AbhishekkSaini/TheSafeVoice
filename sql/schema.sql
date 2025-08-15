@@ -5,6 +5,7 @@ create table if not exists public.profiles (
     id uuid primary key references auth.users(id) on delete cascade,
     display_name text,
     phone text,
+    email text generated always as ((select email from auth.users where auth.users.id = id)) stored,
     role text not null default 'member', -- 'member' | 'admin' | 'moderator'
     preferences jsonb not null default '{}'::jsonb,
     created_at timestamp with time zone default now()
@@ -229,6 +230,11 @@ do $$ begin
         select 1 from pg_indexes where schemaname = 'public' and indexname = 'profiles_phone_unique'
     ) then
         create unique index profiles_phone_unique on public.profiles (phone) where phone is not null;
+    end if;
+    if not exists (
+        select 1 from pg_indexes where schemaname = 'public' and indexname = 'profiles_email_unique'
+    ) then
+        create unique index profiles_email_unique on public.profiles (email) where email is not null;
     end if;
 end $$;
 
