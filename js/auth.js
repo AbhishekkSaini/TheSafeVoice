@@ -11,6 +11,8 @@ export function mountAuthUiHooks() {
 
     const loginFacebook = document.getElementById('loginFacebook');
     const loginTwitter = document.getElementById('loginTwitter');
+    // Optional alias id from user's snippet
+    const twitterLoginBtn = document.getElementById('twitterLoginBtn');
 
     // Utility: show logout button only when logged in
     async function updateLogoutVisibility() {
@@ -24,7 +26,16 @@ export function mountAuthUiHooks() {
     }
 
     updateLogoutVisibility();
-    try { supabase.auth.onAuthStateChange(() => updateLogoutVisibility()); } catch {}
+    try {
+        supabase.auth.onAuthStateChange((_event, session) => {
+            updateLogoutVisibility();
+            // After OAuth/email verification returns, redirect signed-in users
+            if (session) {
+                const atForum = /forum\.html$/i.test(window.location.pathname);
+                if (!atForum) window.location.href = 'forum.html';
+            }
+        });
+    } catch {}
 
     if (signupForm) {
         signupForm.addEventListener('submit', async (e) => {
@@ -167,6 +178,7 @@ export function mountAuthUiHooks() {
     if (loginGoogle) loginGoogle.addEventListener('click', () => signInWithProvider('google'));
     if (loginFacebook) loginFacebook.addEventListener('click', () => signInWithProvider('facebook'));
     if (loginTwitter) loginTwitter.addEventListener('click', () => signInWithProvider('twitter'));
+    if (twitterLoginBtn) twitterLoginBtn.addEventListener('click', () => signInWithProvider('twitter'));
 }
 
 
