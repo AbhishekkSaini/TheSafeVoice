@@ -22,9 +22,20 @@ export function mountAuthUiHooks() {
             if (!email || !password) return alert('Email and password required');
             if (!phone) return alert('Phone number required');
 
-            // Simple E.164-ish phone validation
-            const phoneOk = /^[+]?\d{8,15}$/.test((phone || '').replace(/\s|\-/g, ''));
-            if (!phoneOk) return alert('Enter a valid phone number (digits, optional leading +).');
+            // India-only (+91) phone normalization and validation
+            const normalizePhoneIndia = (input) => {
+                const digits = (input || '').replace(/\D/g, '');
+                // If user typed 10 digits, prefix 91
+                if (digits.length === 10) return '+91' + digits;
+                if (digits.length === 12 && digits.startsWith('91')) return '+' + digits;
+                return null;
+            };
+            const normalizedPhone = normalizePhoneIndia(phone);
+            if (!normalizedPhone) return alert('Enter a valid Indian mobile number (10 digits or +91XXXXXXXXXX).');
+            // Indian mobile numbers start with 6-9
+            if (!/^\+916|\+917|\+918|\+919/.test(normalizedPhone.slice(0,4)) && !/^\+91[6-9][0-9]{9}$/.test(normalizedPhone)) {
+                if (!/^\+91[6-9][0-9]{9}$/.test(normalizedPhone)) return alert('Indian mobile must start with 6-9 and be 10 digits (e.g., +919876543210)');
+            }
             const submitBtn = signupForm.querySelector('button[type="submit"]');
             const original = submitBtn.textContent;
             submitBtn.textContent = 'Creating account...';
@@ -35,7 +46,7 @@ export function mountAuthUiHooks() {
                 const { data: existingPhone } = await supabase
                     .from('profiles')
                     .select('id')
-                    .eq('phone', phone)
+                    .eq('phone', normalizedPhone)
                     .limit(1);
                 if ((existingPhone || []).length > 0) {
                     alert('This phone number is already registered. Please log in or use a different number.');
@@ -64,7 +75,6 @@ export function mountAuthUiHooks() {
                 // Save intended profile data for after first login (when session exists)
                 try {
                     const displayName = [firstName, lastName].filter(Boolean).join(' ').trim();
-                    const normalizedPhone = (phone || '').replace(/\s|\-/g, '');
                     localStorage.setItem('sv_pending_profile', JSON.stringify({ displayName, phone: normalizedPhone }));
                 } catch {}
                 window.location.href = 'login.html';
