@@ -52,7 +52,8 @@ export function mountAuthUiHooks() {
                 email,
                 password,
                 options: {
-                    emailRedirectTo: window.location.origin + '/Safevoice/login.html',
+                    // Use a robust relative redirect that works on GitHub Pages (repo subpath) and locally
+                    emailRedirectTo: new URL('login.html', window.location.href).href,
                     data: { first_name: firstName, last_name: lastName }
                 }
             });
