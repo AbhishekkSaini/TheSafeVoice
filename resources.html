@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resources - TheSafeVoice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body class="font-sans bg-gradient-to-br from-slate-50 to-orange-50 min-h-screen">
+    <nav class="bg-white/90 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-orange-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
+                        <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <a href="index.html" class="text-xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">TheSafeVoice</a>
+                </div>
+                <div class="hidden md:flex items-center space-x-6">
+                    <a href="forum.html" class="text-gray-700 hover:text-orange-600">Forum</a>
+                    <a href="resources.html" class="text-gray-800 font-semibold">Resources</a>
+                    <a href="profile.html" class="text-gray-700 hover:text-orange-600">Profile</a>
+                    <button id="sosBtn" class="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-semibold">SOS</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Safety Resources</h1>
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <article class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Helplines</h3>
+                <ul class="text-gray-700 text-sm space-y-1">
+                    <li>Police: 100</li>
+                    <li>Women Helpline: 1091</li>
+                    <li>National Emergency: 112</li>
+                </ul>
+            </article>
+            <article class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Legal Helplines</h3>
+                <p class="text-gray-700 text-sm">Curated list of free/NGO legal support.</p>
+            </article>
+            <article class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Downloadable Guides</h3>
+                <p class="text-gray-700 text-sm">Personal safety checklists and planning worksheets.</p>
+            </article>
+        </div>
+    </main>
+
+    <script type="module">
+        import { mountSosButton } from './js/sos.js';
+        mountSosButton('#sosBtn');
+        window.lucide && window.lucide.createIcons();
+    </script>
+</body>
+</html>
+
+
