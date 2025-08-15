@@ -1,4 +1,4 @@
-import { initSupabase, supabase, ensureProfile } from './supabase.js';
+import { initSupabase, supabase, ensureProfile, getUser } from './supabase.js';
 
 export function mountAuthUiHooks() {
     initSupabase();
@@ -7,8 +7,23 @@ export function mountAuthUiHooks() {
     const loginForm = document.getElementById('loginForm');
     const logoutBtn = document.getElementById('logoutBtn');
     const loginGoogle = document.getElementById('loginGoogle');
+
     const loginFacebook = document.getElementById('loginFacebook');
     const loginTwitter = document.getElementById('loginTwitter');
+
+    // Utility: show logout button only when logged in
+    async function updateLogoutVisibility() {
+        try {
+            const user = await getUser();
+            const btn = document.getElementById('logoutBtn');
+            if (btn) {
+                if (user) btn.classList.remove('hidden'); else btn.classList.add('hidden');
+            }
+        } catch {}
+    }
+
+    updateLogoutVisibility();
+    try { supabase.auth.onAuthStateChange(() => updateLogoutVisibility()); } catch {}
 
     if (signupForm) {
         signupForm.addEventListener('submit', async (e) => {
@@ -17,7 +32,7 @@ export function mountAuthUiHooks() {
             const password = document.getElementById('password')?.value;
             const firstName = document.getElementById('firstName')?.value?.trim();
             const lastName = document.getElementById('lastName')?.value?.trim();
-            // Get raw 10-digit phone and map to +91XXXXXXXXXX (fallback to old id="phone")
+            // in this we have only 10 digit phone number
             const phoneInputEl = document.getElementById('phone10') || document.getElementById('phone');
             const phone10 = phoneInputEl ? String(phoneInputEl.value || '').trim() : '';
 
