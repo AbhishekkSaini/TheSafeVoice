@@ -101,7 +101,7 @@ export function mountAuthUiHooks() {
                     const emailCi = (email || '').trim().toLowerCase();
                     const displayName = [firstName, lastName].filter(Boolean).join(' ').trim();
                     // Enforce uniqueness at backend immediately; if it throws 23505 we show duplicate message
-                    const userId = signData?.user?.id || data?.user?.id;
+                    const userId = data?.user?.id;
                     if (userId) {
                         const { error: rpcErr } = await supabase.rpc('upsert_profile_secure', {
                             p_id: userId,
