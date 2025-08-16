@@ -9,6 +9,7 @@ export function mountAuthUiHooks() {
     const logoutBtns = document.querySelectorAll('[id="logoutBtn"], .logoutBtn');
     const loginBtns = document.querySelectorAll('#loginBtn, #mobileLoginBtn');
     const signupBtns = document.querySelectorAll('#signupBtn, #mobileSignupBtn');
+    const messagesLinks = document.querySelectorAll('[id="messagesLink"], .messagesLink');
     const loginGoogle = document.getElementById('loginGoogle');
 
     const loginFacebook = document.getElementById('loginFacebook');
@@ -28,6 +29,7 @@ export function mountAuthUiHooks() {
             });
             loginBtns.forEach((btn) => showWhenLoggedOut(btn, !user));
             signupBtns.forEach((btn) => showWhenLoggedOut(btn, !user));
+            messagesLinks.forEach((el) => showWhenLoggedIn(el, !!user));
         } catch {}
     }
 
@@ -50,6 +52,7 @@ export function mountAuthUiHooks() {
             const password = document.getElementById('password')?.value;
             const firstName = document.getElementById('firstName')?.value?.trim();
             const lastName = document.getElementById('lastName')?.value?.trim();
+            const username = document.getElementById('username')?.value?.trim();
             // in this we have only 10 digit phone number
             const phoneInputEl = document.getElementById('phone10') || document.getElementById('phone');
             const phone10 = phoneInputEl ? String(phoneInputEl.value || '').trim() : '';
@@ -116,6 +119,10 @@ export function mountAuthUiHooks() {
                             p_display_name: displayName
                         });
                         if (rpcErr) throw rpcErr;
+                        // set username if provided
+                        if (username && username.length >= 3) {
+                            await supabase.rpc('set_username', { p_username: username });
+                        }
                     }
                 } catch (rpcErr) {
                     alert(rpcErr.message || 'Account already exists with this email or mobile number');

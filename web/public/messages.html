@@ -22,13 +22,20 @@
 
     <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid md:grid-cols-2 gap-6">
         <section class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-            <h2 class="text-lg font-bold text-gray-800 mb-3">Inbox</h2>
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-lg font-bold text-gray-800">Inbox</h2>
+                <div class="flex items-center gap-2">
+                    <input id="searchUser" placeholder="Search username" class="form-input w-44"/>
+                    <input id="blockUsername" placeholder="Block username" class="form-input w-44"/>
+                    <button id="blockBtn" class="px-3 py-2 border rounded">Block</button>
+                </div>
+            </div>
             <div id="inbox" class="space-y-3 text-sm text-gray-700"></div>
         </section>
         <section class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
             <h2 class="text-lg font-bold text-gray-800 mb-3">Compose</h2>
             <form id="compose" class="space-y-3">
-                <input id="to" type="email" class="form-input" placeholder="Recipient email" required />
+                <input id="toUsername" class="form-input" placeholder="Recipient username" required />
                 <textarea id="body" rows="5" class="form-input" placeholder="Write a private message" required></textarea>
                 <button type="submit" class="btn-primary">Send</button>
             </form>
@@ -53,15 +60,17 @@
             const inbox = document.getElementById('inbox');
             inbox.innerHTML = (data || []).map(m => `<div class="p-3 border rounded">${m.sender_id === me.id ? '<span class=\"text-xs text-gray-500\">You →</span>' : '<span class=\"text-xs text-gray-500\">From</span>'} <span class="text-xs text-gray-500">${new Date(m.created_at).toLocaleString()}</span><div class="mt-1">${escapeHtml(m.body)}</div></div>`).join('') || '<div class="text-gray-500">No messages.</div>';
 
-            // Compose handler: resolve receiver by email using SQL function
+            // Compose handler: resolve receiver by username
             document.getElementById('compose').addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const toEmail = document.getElementById('to').value.trim();
+                const uname = document.getElementById('toUsername').value.trim();
                 const body = document.getElementById('body').value.trim();
-                if (!toEmail || !body) return;
-                const { data: receiverId, error: rErr } = await supabase.rpc('resolve_user_id_by_email', { p_email: toEmail });
-                if (rErr) return alert(rErr.message);
-                if (!receiverId) { alert('No user with that email'); return; }
+                if (!uname || !body) return;
+                const { data: profile, error: pErr } = await supabase.from('profiles').select('id,allow_messages,is_private').eq('username', uname).single();
+                if (pErr) return alert(pErr.message);
+                const receiverId = profile?.id;
+                if (!receiverId) { alert('No user with that username'); return; }
+                if (profile.is_private && !profile.allow_messages) { alert('User does not accept messages'); return; }
                 const { error } = await supabase.from('messages').insert({ sender_id: me.id, receiver_id: receiverId, body });
                 if (error) return alert(error.message);
                 alert('Message sent');
@@ -84,6 +93,27 @@
                     .subscribe();
             } catch {}
 
+            // Username search
+            document.getElementById('searchUser').addEventListener('input', debounce(async (e) => {
+                const q = (e.target.value || '').trim();
+                if (!q) return;
+                const { data: results } = await supabase.from('profiles').select('username,display_name').ilike('username', q+'%').limit(5);
+                inbox.insertAdjacentHTML('afterbegin', (results||[]).map(r => `<div class="p-2 text-sm text-gray-600">@${r.username} — ${r.display_name||''}</div>`).join(''));
+            }, 300));
+
+            function debounce(fn, t){ let id=null; return (...a)=>{ clearTimeout(id); id=setTimeout(()=>fn(...a),t); } }
+
+            // Block user handler
+            document.getElementById('blockBtn').addEventListener('click', async () => {
+                const uname = (document.getElementById('blockUsername').value || '').trim();
+                if (!uname) return;
+                const { data: profile } = await supabase.from('profiles').select('id').eq('username', uname).single();
+                const targetId = profile?.id;
+                if (!targetId) { alert('No user with that username'); return; }
+                const { error } = await supabase.from('user_blocks').insert({ blocker_id: me.id, blocked_id: targetId });
+                if (error) return alert(error.message);
+                alert('User blocked');
+            });
             function escapeHtml(s = '') { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
         })();
     </script>
