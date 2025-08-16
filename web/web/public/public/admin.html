@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin - TheSafeVoice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="font-sans bg-gradient-to-br from-slate-50 to-orange-50 min-h-screen">
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Admin Panel</h1>
+        <div class="grid md:grid-cols-2 gap-6">
+            <section class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-3">Flagged Posts</h2>
+                <div id="flagged-posts" class="space-y-3 text-sm text-gray-700"></div>
+            </section>
+            <section class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-3">Flagged Comments</h2>
+                <div id="flagged-comments" class="space-y-3 text-sm text-gray-700"></div>
+            </section>
+        </div>
+    </main>
+
+    <script src="js/config.js"></script>
+    <script type="module">
+        import { initSupabase, supabase, getUser } from './js/supabase.js';
+        initSupabase();
+        (async () => {
+            const user = await getUser();
+            if (!user) { window.location.href = 'login.html'; return; }
+            // Basic check; enforce via RLS too on server-side
+            const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+            if (!profile || profile.role !== 'admin') { document.body.innerHTML = '<div class="p-8">Access denied</div>'; return; }
+
+            const { data: flaggedPosts } = await supabase.from('posts').select('id,title,flags,created_at').gt('flags', 0).order('flags', { ascending: false }).limit(50);
+            document.getElementById('flagged-posts').innerHTML = (flaggedPosts || []).map(p => `<div class="p-3 border rounded">${p.title} <span class="text-xs text-gray-500">(${p.flags})</span></div>`).join('') || '<div class="text-gray-500">None</div>';
+
+            const { data: flaggedComments } = await supabase.from('comments').select('id,body,flags,created_at').gt('flags', 0).order('flags', { ascending: false }).limit(50);
+            document.getElementById('flagged-comments').innerHTML = (flaggedComments || []).map(c => `<div class="p-3 border rounded">${c.body.slice(0,140)}… <span class="text-xs text-gray-500">(${c.flags})</span></div>`).join('') || '<div class="text-gray-500">None</div>';
+        })();
+    </script>
+</body>
+</html>
+
+
