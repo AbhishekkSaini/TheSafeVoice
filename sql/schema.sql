@@ -320,4 +320,21 @@ grant usage on schema public to anon, authenticated;
 -- Trigger PostgREST reload (safe to run; ignored if not present)
 do $$ begin perform pg_notify('pgrst', 'reload schema'); exception when others then null; end $$;
 
+-- Resolve user id by email for messaging (security-definer, authenticated-only)
+create or replace function public.resolve_user_id_by_email(p_email text)
+returns uuid
+language plpgsql security definer
+set search_path = public, auth
+as $$
+declare v uuid;
+begin
+  select u.id into v
+  from auth.users u
+  where lower(trim(u.email)) = lower(trim(p_email))
+  limit 1;
+  return v;
+end; $$;
+
+grant execute on function public.resolve_user_id_by_email(text) to authenticated;
+
 

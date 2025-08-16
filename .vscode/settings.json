@@ -1,0 +1,13 @@
+{
+	"css.lint.unknownAtRules": "ignore",
+	"scss.lint.unknownAtRules": "ignore",
+	"less.lint.unknownAtRules": "ignore",
+	"postcss.validate": true,
+	"tailwindCSS.includeLanguages": {
+		"plaintext": "html",
+		"postcss": "css",
+		"css": "css"
+	}
+}
+
+
