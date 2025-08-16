@@ -7,6 +7,8 @@ export function mountAuthUiHooks() {
     const loginForm = document.getElementById('loginForm');
     // Support multiple logout buttons across pages (desktop + mobile)
     const logoutBtns = document.querySelectorAll('[id="logoutBtn"], .logoutBtn');
+    const loginBtns = document.querySelectorAll('#loginBtn, #mobileLoginBtn');
+    const signupBtns = document.querySelectorAll('#signupBtn, #mobileSignupBtn');
     const loginGoogle = document.getElementById('loginGoogle');
 
     const loginFacebook = document.getElementById('loginFacebook');
@@ -18,10 +20,14 @@ export function mountAuthUiHooks() {
     async function updateLogoutVisibility() {
         try {
             const user = await getUser();
+            const showWhenLoggedIn = (el, show) => { if (!el) return; el.classList.toggle('hidden', !show); };
+            const showWhenLoggedOut = (el, show) => { if (!el) return; el.classList.toggle('hidden', !show); };
             logoutBtns.forEach((btn) => {
                 if (!btn) return;
-                if (user) btn.classList.remove('hidden'); else btn.classList.add('hidden');
+                showWhenLoggedIn(btn, !!user);
             });
+            loginBtns.forEach((btn) => showWhenLoggedOut(btn, !user));
+            signupBtns.forEach((btn) => showWhenLoggedOut(btn, !user));
         } catch {}
     }
 

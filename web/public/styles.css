@@ -475,3 +475,6 @@ svg {
     --warning-500: #f59e0b;
     --error-500: #ef4444;
 }
+
+/* Utility to support show/hide toggling from JS */
+.hidden { display: none !important; }
