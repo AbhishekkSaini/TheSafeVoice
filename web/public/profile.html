@@ -25,8 +25,17 @@
 
     <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-6">
-            <h1 class="text-2xl font-bold text-gray-800 mb-1" id="profile-name">Your Profile</h1>
-            <p class="text-gray-600 text-sm" id="profile-email"></p>
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800 mb-1" id="profile-name">Your Profile</h1>
+                    <p class="text-gray-600 text-sm" id="profile-email"></p>
+                    <div class="text-sm text-gray-700">Username: <span id="profile-username" class="font-medium">—</span></div>
+                </div>
+                <form id="usernameForm" class="flex items-center gap-2">
+                    <input id="newUsername" class="form-input" placeholder="new username" minlength="3" maxlength="24" pattern="[a-zA-Z0-9_\.\-]+" />
+                    <button class="px-3 py-2 border rounded">Update</button>
+                </form>
+            </div>
         </div>
         <div class="grid md:grid-cols-2 gap-6">
             <section class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
@@ -53,12 +62,24 @@
             if (!user) { window.location.href = 'login.html'; return; }
             document.getElementById('profile-email').textContent = user.email || '';
             document.getElementById('profile-name').textContent = user.user_metadata?.first_name ? `${user.user_metadata.first_name} ${user.user_metadata?.last_name || ''}` : 'Your Profile';
+            const { data: p } = await supabase.from('profiles').select('username').eq('id', user.id).single();
+            document.getElementById('profile-username').textContent = p?.username || '—';
 
             const { data: posts } = await supabase.from('posts').select('id,title,created_at,is_anonymous').eq('author_id', user.id).order('created_at', { ascending: false }).limit(10);
             document.getElementById('profile-posts').innerHTML = (posts || []).map(p => `<a class="block hover:underline" href="thread.html?id=${p.id}">${p.title}</a>`).join('') || '<div class="text-gray-500">No posts yet.</div>';
 
             const { data: sos } = await supabase.from('sos_events').select('id,created_at,lat,lng').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10);
             document.getElementById('profile-sos').innerHTML = (sos || []).map(s => `<div>${new Date(s.created_at).toLocaleString()} — ${s.lat?.toFixed(4) || '?'}, ${s.lng?.toFixed(4) || '?'}</div>`).join('') || '<div class="text-gray-500">No SOS yet.</div>';
+            // Update username
+            document.getElementById('usernameForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const uname = document.getElementById('newUsername').value.trim();
+                if (!uname) return;
+                const { error } = await supabase.rpc('set_username', { p_username: uname });
+                if (error) return alert(error.message);
+                document.getElementById('profile-username').textContent = uname;
+                alert('Username updated');
+            });
         })();
     </script>
 </body>
