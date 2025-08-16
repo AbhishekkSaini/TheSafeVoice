@@ -70,6 +70,7 @@ export function mountAuthUiHooks() {
 
             // Preflight duplication check via RPC (blocks before sending email)
             try {
+                const emailCi = (email || '').trim().toLowerCase();
                 const { data: ok, error: availErr } = await supabase.rpc('email_or_phone_available', { p_email: emailCi, p_phone: normalizedPhone });
                 if (availErr) console.warn('availability check error', availErr);
                 if (ok === false) {
@@ -97,6 +98,7 @@ export function mountAuthUiHooks() {
                 alert('Check your email to verify your account.');
                 // Save intended profile data for after first login (when session exists)
                 try {
+                    const emailCi = (email || '').trim().toLowerCase();
                     const displayName = [firstName, lastName].filter(Boolean).join(' ').trim();
                     // Enforce uniqueness at backend immediately; if it throws 23505 we show duplicate message
                     const userId = signData?.user?.id || data?.user?.id;
