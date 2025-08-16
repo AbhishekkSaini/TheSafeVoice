@@ -51,12 +51,12 @@
 
                 <!-- Auth Buttons -->
                 <div class="hidden md:flex items-center space-x-4">
-                    <button id="loginBtn" class="px-4 py-2 text-orange-600 hover:text-orange-700 font-medium transition-colors">
+                    <a id="loginBtn" href="login.html" class="px-4 py-2 text-orange-600 hover:text-orange-700 font-medium transition-colors">
                         Login
-                    </button>
-                    <button id="signupBtn" class="px-6 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:from-orange-600 hover:to-red-600 transition-all transform hover:scale-105 font-medium shadow-lg">
+                    </a>
+                    <a id="signupBtn" href="signup.html" class="px-6 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:from-orange-600 hover:to-red-600 transition-all transform hover:scale-105 font-medium shadow-lg">
                         Sign Up
-                    </button>
+                    </a>
                     <button id="logoutBtn" class="hidden px-4 py-2 text-gray-600 hover:text-gray-700 font-medium transition-colors">
                         Logout
                     </button>
@@ -487,8 +487,11 @@
     <script type="module">
         import { mountSosButton, sendSOS } from './js/sos.js';
         import { initSupabase, supabase } from './js/supabase.js';
+        import { mountAuthUiHooks } from './js/auth.js';
         initSupabase();
         mountSosButton('#sosBtn');
+        // Sync nav (Login/Signup vs Logout) with current session
+        mountAuthUiHooks();
         // Expose minimal bridge so existing modal can notify new SOS
         window.SafeVoiceSendSOS = async () => { try { await sendSOS(); } catch (e) { alert(e.message || 'SOS failed'); } };
         window.lucide && window.lucide.createIcons();
