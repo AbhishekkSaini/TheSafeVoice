@@ -10,6 +10,16 @@ export function mountAuthUiHooks() {
     const loginBtns = document.querySelectorAll('#loginBtn, #mobileLoginBtn');
     const signupBtns = document.querySelectorAll('#signupBtn, #mobileSignupBtn');
     const messagesLinks = document.querySelectorAll('[id="messagesLink"], .messagesLink');
+
+    // Optimistic first paint based on localStorage to avoid flicker after login
+    try {
+        const logged = localStorage.getItem('isLoggedIn') === 'true';
+        const toggle = (el, hidden) => { if (!el) return; el.classList.toggle('hidden', !!hidden); };
+        logoutBtns.forEach((el) => toggle(el, !logged));
+        loginBtns.forEach((el) => toggle(el, logged));
+        signupBtns.forEach((el) => toggle(el, logged));
+        messagesLinks.forEach((el) => toggle(el, !logged));
+    } catch {}
     const loginGoogle = document.getElementById('loginGoogle');
 
     const loginFacebook = document.getElementById('loginFacebook');
