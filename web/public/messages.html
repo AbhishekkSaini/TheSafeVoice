@@ -256,18 +256,38 @@
             const text = inputEl.value.trim();
             const file = fileEl.files?.[0] || null;
             if (!text && !file) return;
-            let url = null;
+            
+            let attachment_url = null;
             if (file) {
                 try {
                     const path = `dm/${me.id}-${other.id}/${Date.now()}-${file.name}`;
                     const up = await supabase.storage.from('dm_media').upload(path, file, { upsert: false });
                     if (!up.error) {
-                        url = supabase.storage.from('dm_media').getPublicUrl(path).data.publicUrl;
+                        attachment_url = supabase.storage.from('dm_media').getPublicUrl(path).data.publicUrl;
                     }
-                } catch (e) { showError(e.message); }
+                } catch (e) { 
+                    showError('Failed to upload file: ' + e.message); 
+                    return;
+                }
             }
-            const { error } = await supabase.from('messages').insert({ sender_id: me.id, receiver_id: other.id, body: text || null, attachment_url: url });
-            if (error) return showError(error.message);
+            
+            const messageData = { 
+                sender_id: me.id, 
+                receiver_id: other.id, 
+                body: text || '' 
+            };
+            
+            // Only add attachment_url if we have one
+            if (attachment_url) {
+                messageData.attachment_url = attachment_url;
+            }
+            
+            const { error } = await supabase.from('messages').insert(messageData);
+            if (error) {
+                showError('Failed to send message: ' + error.message);
+                return;
+            }
+            
             inputEl.value = '';
             if (fileEl) fileEl.value = '';
         }

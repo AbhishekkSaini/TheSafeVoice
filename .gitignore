@@ -6,7 +6,7 @@
 .env.production.local
 
 # Configuration files with real credentials
-# web/public/js/config.js  # Temporarily commented out for deployment
+web/public/js/config.js
 **/secrets.js
 **/keys.js
 
