@@ -18,6 +18,7 @@ const nextConfig: NextConfig = {
         { source: "/resources", destination: "/resources.html" },
         { source: "/admin", destination: "/admin.html" },
         { source: "/messages", destination: "/messages.html" },
+        { source: "/dm", destination: "/messages.html" },
         { source: "/update-password", destination: "/update-password.html" },
       ],
       afterFiles: [],
