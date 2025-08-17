@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User - TheSafeVoice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="font-sans bg-gradient-to-br from-slate-50 to-orange-50 min-h-screen">
+    <nav class="bg-white/90 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-orange-100">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <a href="forum.html" class="text-gray-700 hover:text-orange-600">Back</a>
+                <a href="messages.html" class="text-gray-700 hover:text-orange-600">Messages</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <section class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div class="flex items-center gap-4">
+                <img id="u-avatar" class="w-16 h-16 rounded-full" src="/avatar.png"/>
+                <div>
+                    <h1 id="u-username" class="text-2xl font-bold">@user</h1>
+                    <p id="u-bio" class="text-gray-600 text-sm">—</p>
+                </div>
+                <div class="ml-auto flex items-center gap-2">
+                    <button id="u-message" class="px-4 py-2 border rounded">Message</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mt-6">
+            <h2 class="text-lg font-bold mb-3">Recent posts</h2>
+            <div id="u-posts" class="space-y-3 text-sm text-gray-700"></div>
+        </section>
+    </main>
+
+    <script src="js/config.js"></script>
+    <script type="module">
+        import { initSupabase, supabase, getUser } from './js/supabase.js';
+        initSupabase();
+        const qp = new URLSearchParams(location.search);
+        const uname = qp.get('u') || qp.get('username');
+        let profile = null; let me = null;
+        (async ()=>{
+            me = await getUser();
+            const { data: p } = await supabase.from('profiles').select('id,username,bio,profile_pic').eq('username', uname).single();
+            profile = p; if(!profile){ document.querySelector('main').innerHTML='<div class="text-red-600">User not found</div>'; return; }
+            document.getElementById('u-username').textContent = `@${profile.username}`;
+            document.getElementById('u-bio').textContent = profile.bio || '—';
+            if (profile.profile_pic) document.getElementById('u-avatar').src = profile.profile_pic;
+            const { data: posts } = await supabase.from('posts').select('id,title,created_at').eq('author_id', profile.id).order('created_at',{ascending:false}).limit(10);
+            document.getElementById('u-posts').innerHTML = (posts||[]).map(p=>`<a class="block hover:underline" href="thread.html?id=${p.id}">${p.title}</a>`).join('') || '<div class="text-gray-500">No posts yet.</div>';
+        })();
+
+        document.getElementById('u-message').addEventListener('click', ()=>{
+            if (!profile) return; window.location.href = `messages.html?to=${encodeURIComponent(profile.username)}`;
+        });
+    </script>
+</body>
+</html>
+
+

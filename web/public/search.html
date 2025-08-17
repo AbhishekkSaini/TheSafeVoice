@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Search - TheSafeVoice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="font-sans bg-gradient-to-br from-slate-50 to-orange-50 min-h-screen">
+    <nav class="bg-white/90 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-orange-100">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <a href="forum.html" class="text-gray-700 hover:text-orange-600">Back</a>
+                <a href="messages.html" class="text-gray-700 hover:text-orange-600">Messages</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div class="flex items-center gap-2">
+                <input id="q" placeholder="Search users or posts" class="flex-1 border rounded-full px-4 py-2" />
+                <button id="go" class="px-4 py-2 border rounded">Search</button>
+            </div>
+        </div>
+        <div class="grid md:grid-cols-2 gap-6 mt-6">
+            <section class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <h2 class="font-semibold mb-3">Users</h2>
+                <div id="users" class="space-y-2 text-sm"></div>
+            </section>
+            <section class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <h2 class="font-semibold mb-3">Posts</h2>
+                <div id="posts" class="space-y-2 text-sm"></div>
+            </section>
+        </div>
+    </main>
+
+    <script src="js/config.js"></script>
+    <script type="module">
+        import { initSupabase, supabase } from './js/supabase.js';
+        initSupabase();
+        const q = document.getElementById('q');
+        const users = document.getElementById('users');
+        const posts = document.getElementById('posts');
+        document.getElementById('go').addEventListener('click', run);
+        q.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ run(); }});
+        async function run(){
+            const text = (q.value||'').trim();
+            if(!text){ users.innerHTML=''; posts.innerHTML=''; return; }
+            const [uRes, pRes] = await Promise.all([
+                supabase.from('profiles').select('username,profile_pic').ilike('username', `%${text}%`).limit(10),
+                supabase.from('posts').select('id,title').ilike('title', `%${text}%`).limit(10)
+            ]);
+            const u = uRes.data || []; const p = pRes.data || [];
+            users.innerHTML = u.map(x=>`<div class="flex items-center justify-between px-2 py-1 rounded hover:bg-gray-50">
+                <div class="flex items-center gap-2"><img src="${x.profile_pic||'/avatar.png'}" class="w-8 h-8 rounded-full"/><a class="font-medium" href="user.html?u=${encodeURIComponent(x.username)}">@${x.username}</a></div>
+                <a class="text-xs px-2 py-1 rounded-full border" href="messages.html?to=${encodeURIComponent(x.username)}">Message</a>
+            </div>`).join('') || '<div class="text-gray-500">No users</div>';
+            posts.innerHTML = p.map(x=>`<a class="block hover:underline" href="thread.html?id=${x.id}">${x.title}</a>`).join('') || '<div class="text-gray-500">No posts</div>';
+        }
+        const qp = new URLSearchParams(location.search); if(qp.get('q')){ q.value = qp.get('q'); run(); }
+    </script>
+</body>
+</html>
+
+

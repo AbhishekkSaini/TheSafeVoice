@@ -26,6 +26,7 @@
             <div class="p-3 flex items-center gap-2">
                 <input id="sv-search" placeholder="Search" class="w-full border rounded-full px-4 py-2 text-sm outline-none"/>
             </div>
+            <div id="sv-search-results" class="px-2 space-y-1 hidden"></div>
             <div id="sv-list" class="flex-1 overflow-y-auto"></div>
         </aside>
 
@@ -60,6 +61,7 @@
         const inputEl = $('sv-text');
         const fileEl = $('sv-file');
         const searchEl = $('sv-search');
+        const resultsEl = $('sv-search-results');
 
         let me = null;
         let other = null;
@@ -73,6 +75,10 @@
             if (!u) { window.location.href = 'login.html'; return; }
             me = u;
             await loadConversations();
+            // open conversation by query param (?to=username or ?u=username)
+            const qp = new URLSearchParams(location.search);
+            const toUser = (qp.get('to') || qp.get('u') || '').trim();
+            if (toUser) { await openConversationByUsername(toUser); }
         })();
 
         async function loadConversations(){
@@ -134,6 +140,12 @@
             document.getElementById('sv-block').addEventListener('click', blockUser);
             await loadMessages();
             wireRealtime();
+        }
+
+        async function openConversationByUsername(username){
+            const { data: p, error } = await supabase.from('profiles').select('id').eq('username', username).limit(1).single();
+            if (error || !p?.id) { return showError('User not found'); }
+            await openConversation(p.id);
         }
 
         async function loadMessages(){
@@ -206,12 +218,32 @@
         document.getElementById('sv-send').addEventListener('click', sendMessage);
         inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
         inputEl.addEventListener('input', () => { try { typingCh?.send({ type: 'broadcast', event: 'typing', payload: { userId: me.id } }); } catch {} });
-        searchEl.addEventListener('input', (e) => {
-            const q = (e.target.value || '').toLowerCase();
+        // Search users globally to start a new chat
+        searchEl.addEventListener('input', async (e) => {
+            const q = (e.target.value || '').trim();
+            // filter existing list quickly
             Array.from(listEl.querySelectorAll('button[data-id]')).forEach(btn => {
                 const name = (btn.querySelector('.font-medium')?.textContent || '').toLowerCase();
-                btn.style.display = name.includes(q) ? 'flex' : 'none';
+                btn.style.display = name.includes(q.toLowerCase()) ? 'flex' : 'none';
             });
+            if (q.length < 2) { resultsEl.classList.add('hidden'); resultsEl.innerHTML=''; return; }
+            const { data: users } = await supabase.from('profiles').select('id,username,profile_pic').ilike('username', q+'%').limit(8);
+            if (!users || users.length === 0) { resultsEl.classList.add('hidden'); resultsEl.innerHTML=''; return; }
+            resultsEl.classList.remove('hidden');
+            resultsEl.innerHTML = users.map(u => `
+                <div class="flex items-center justify-between hover:bg-gray-50 rounded-lg px-2 py-1">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <img src="${u.profile_pic||'/avatar.png'}" class="w-8 h-8 rounded-full"/>
+                        <a href="user.html?u=${encodeURIComponent(u.username)}" class="truncate text-sm font-medium">@${u.username}</a>
+                    </div>
+                    <button data-msg="${u.username}" class="text-xs px-2 py-1 rounded-full border">Message</button>
+                </div>
+            `).join('');
+            Array.from(resultsEl.querySelectorAll('button[data-msg]')).forEach(btn => btn.addEventListener('click', async () => {
+                const uname = btn.getAttribute('data-msg');
+                resultsEl.classList.add('hidden');
+                await openConversationByUsername(uname);
+            }));
         });
 
         async function sendMessage(){
