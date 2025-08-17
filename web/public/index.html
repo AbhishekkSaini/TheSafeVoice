@@ -41,9 +41,9 @@
                 <!-- Desktop Navigation -->
                 <div class="flex items-center space-x-8 relative">
                     <div class="hidden md:block relative">
-                        <input id="nav-user-search" placeholder="Search users" class="form-input md:w-64 rounded-full pl-10" />
+                        <input id="nav-user-search" placeholder="Search users, posts, or topics..." class="form-input md:w-80 rounded-full pl-10 pr-4" />
                         <i data-lucide="search" class="w-4 h-4 text-gray-500 absolute left-3 top-2.5"></i>
-                        <div id="nav-user-results" class="absolute mt-1 w-[260px] bg-white border rounded-xl shadow-lg hidden z-50"></div>
+                        <div id="nav-user-results" class="absolute mt-1 w-[320px] bg-white border rounded-xl shadow-lg hidden z-50 max-h-96 overflow-y-auto"></div>
                     </div>
                     <a href="#home" class="text-gray-700 hover:text-gray-900 transition-colors font-medium">Home</a>
                     <a href="#services" class="text-gray-700 hover:text-gray-900 transition-colors font-medium">Services</a>
@@ -77,6 +77,12 @@
             <!-- Mobile Menu -->
             <div id="mobileMenu" class="hidden md:hidden py-4 border-t border-gray-200">
                 <div class="flex flex-col space-y-4">
+                    <!-- Mobile Search -->
+                    <div class="relative">
+                        <input id="mobile-search" placeholder="Search users, posts, or topics..." class="w-full border rounded-full px-4 py-2 pl-10" />
+                        <i data-lucide="search" class="w-4 h-4 text-gray-500 absolute left-3 top-2.5"></i>
+                        <div id="mobile-search-results" class="absolute mt-1 w-full bg-white border rounded-xl shadow-lg hidden z-50 max-h-64 overflow-y-auto"></div>
+                    </div>
                     <a href="#home" class="text-gray-700 hover:text-orange-600 transition-colors font-medium">Home</a>
                     <a href="#services" class="text-gray-700 hover:text-orange-600 transition-colors font-medium">Services</a>
                     <a href="forum.html" class="text-gray-700 hover:text-orange-600 transition-colors font-medium">Forum</a>
@@ -118,6 +124,26 @@
                         Quick SOS Access
                     </button>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Global Search Section -->
+    <section class="py-12 bg-white border-b">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-4">Find What You Need</h2>
+                <p class="text-lg text-gray-600">Search for users, posts, safety tips, and community discussions</p>
+            </div>
+            <div class="max-w-2xl mx-auto">
+                <div class="relative">
+                    <input id="hero-search" placeholder="Search users, posts, safety tips, legal advice..." class="w-full border-2 border-gray-200 rounded-full px-6 py-4 pl-12 text-lg focus:border-orange-500 focus:outline-none shadow-lg" />
+                    <i data-lucide="search" class="w-6 h-6 text-gray-400 absolute left-4 top-1/2 transform -translate-y-1/2"></i>
+                    <button id="hero-search-btn" class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-2 rounded-full hover:from-orange-600 hover:to-red-600 transition-all">
+                        Search
+                    </button>
+                </div>
+                <div id="hero-search-results" class="mt-4 bg-white border rounded-xl shadow-lg hidden max-h-96 overflow-y-auto"></div>
             </div>
         </div>
     </section>
@@ -504,6 +530,8 @@
         window.SafeVoiceSendSOS = async () => { try { await sendSOS(); } catch (e) { alert(e.message || 'SOS failed'); } };
         window.lucide && window.lucide.createIcons();
         mountUserSearch('#nav-user-search', '#nav-user-results');
+        mountUserSearch('#mobile-search', '#mobile-search-results');
+        mountUserSearch('#hero-search', '#hero-search-results');
         replaceNativeAlerts();
         // Trending + Categories + Quick Help Strip + New Member Hook + (optional) Safety Map
         // Reverted to original simple homepage blocks

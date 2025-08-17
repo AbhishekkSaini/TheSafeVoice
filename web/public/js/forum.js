@@ -57,8 +57,6 @@ function mountFilters() {
     if (!select) return;
     select.innerHTML = `<option value="">All Categories</option>` + CATEGORY_KEYS.map(c => `<option value="${c.key}">${c.label}</option>`).join('');
     select.addEventListener('change', renderFeed);
-    const qInput = q('#filter-q');
-    if (qInput) qInput.addEventListener('input', debounce(renderFeed, 250));
 }
 
 
@@ -98,25 +96,21 @@ async function renderFeed() {
     if (!list) return;
     const select = q('#filter-category');
     const category = select?.value || '';
-    const qInput = q('#filter-q');
-    const qtext = qInput?.value?.trim() || '';
 
     let query = supabase.from('posts_view').select('*').order('created_at', { ascending: false }).limit(50);
     if (category) query = query.eq('category', category);
-    if (qtext) query = query.ilike('title', `%${qtext}%`);
     let { data, error } = await query;
-    if (error) {
-        const msg = (error.message || '').toLowerCase();
-        if (msg.includes('posts_view') || msg.includes('schema')) {
-            // Fallback when the view or schema cache is not ready – use posts table
-            let q2 = supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(50);
-            if (category) q2 = q2.eq('category', category);
-            if (qtext) q2 = q2.ilike('title', `%${qtext}%`);
-            const { data: d2, error: e2 } = await q2;
-            error = e2;
-            data = (d2 || []).map(p => ({ ...p, author_display_name: '', comments_count: 0 }));
+            if (error) {
+            const msg = (error.message || '').toLowerCase();
+            if (msg.includes('posts_view') || msg.includes('schema')) {
+                // Fallback when the view or schema cache is not ready – use posts table
+                let q2 = supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(50);
+                if (category) q2 = q2.eq('category', category);
+                const { data: d2, error: e2 } = await q2;
+                error = e2;
+                data = (d2 || []).map(p => ({ ...p, author_display_name: '', comments_count: 0 }));
+            }
         }
-    }
     if (error) {
         list.innerHTML = `<div class="text-red-600">${error.message}</div>`;
         return;
