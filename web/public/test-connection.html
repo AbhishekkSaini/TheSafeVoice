@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connection Test - SafeVoice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50 min-h-screen p-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8">🔌 Connection Test</h1>
+        
+        <div id="status" class="p-6 bg-white rounded-lg shadow-sm border">
+            <h2 class="text-xl font-semibold mb-4">Testing Supabase Connection...</h2>
+            <div id="results" class="space-y-4">
+                <div class="flex items-center gap-2">
+                    <span class="w-4 h-4 rounded-full bg-gray-300"></span>
+                    <span>Initializing...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 p-6 bg-white rounded-lg shadow-sm border">
+            <h2 class="text-xl font-semibold mb-4">🔧 Configuration Check</h2>
+            <div id="config-info" class="space-y-2 text-sm">
+                <p>Loading configuration...</p>
+            </div>
+        </div>
+
+        <div class="mt-8 p-6 bg-white rounded-lg shadow-sm border">
+            <h2 class="text-xl font-semibold mb-4">🐦 Twitter OAuth Test</h2>
+            <button id="test-twitter" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                Test Twitter Login
+            </button>
+            <div id="twitter-result" class="mt-4 text-sm"></div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script type="module">
+        import { initSupabase, supabase } from './js/supabase.js';
+
+        const $ = (id) => document.getElementById(id);
+        
+        // Test 1: Configuration
+        function checkConfig() {
+            const config = window.SAFEVOICE_CONFIG;
+            const configInfo = $('config-info');
+            
+            if (!config) {
+                configInfo.innerHTML = '<p class="text-red-600">❌ No configuration found!</p>';
+                return false;
+            }
+            
+            const hasUrl = config.supabaseUrl && config.supabaseUrl !== 'YOUR_SUPABASE_URL_HERE';
+            const hasKey = config.supabaseAnonKey && config.supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY_HERE';
+            
+            configInfo.innerHTML = `
+                <p class="${hasUrl ? 'text-green-600' : 'text-red-600'}">
+                    ${hasUrl ? '✅' : '❌'} Supabase URL: ${hasUrl ? 'Configured' : 'Missing'}
+                </p>
+                <p class="${hasKey ? 'text-green-600' : 'text-red-600'}">
+                    ${hasKey ? '✅' : '❌'} Supabase Key: ${hasKey ? 'Configured' : 'Missing'}
+                </p>
+                <p class="text-gray-600">URL: ${config.supabaseUrl || 'Not set'}</p>
+            `;
+            
+            return hasUrl && hasKey;
+        }
+
+        // Test 2: Connection
+        async function testConnection() {
+            const results = $('results');
+            
+            try {
+                // Initialize Supabase
+                initSupabase();
+                
+                // Test basic connection
+                const { data, error } = await supabase.from('profiles').select('count').limit(1);
+                
+                if (error) throw error;
+                
+                results.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="w-4 h-4 rounded-full bg-green-500"></span>
+                        <span class="text-green-700">✅ Connection Successful!</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-4 h-4 rounded-full bg-green-500"></span>
+                        <span class="text-green-700">✅ Supabase client initialized</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-4 h-4 rounded-full bg-green-500"></span>
+                        <span class="text-green-700">✅ Database accessible</span>
+                    </div>
+                `;
+                
+                return true;
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                results.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="w-4 h-4 rounded-full bg-red-500"></span>
+                        <span class="text-red-700">❌ Connection Failed</span>
+                    </div>
+                    <div class="text-red-600 text-sm mt-2">Error: ${error.message}</div>
+                `;
+                return false;
+            }
+        }
+
+        // Test 3: Twitter OAuth
+        async function testTwitterOAuth() {
+            const result = $('twitter-result');
+            result.innerHTML = '<p class="text-blue-600">Testing Twitter OAuth...</p>';
+            
+            try {
+                const { error } = await supabase.auth.signInWithOAuth({
+                    provider: 'twitter',
+                    options: {
+                        redirectTo: window.location.href
+                    }
+                });
+                
+                if (error) {
+                    result.innerHTML = `<p class="text-red-600">❌ Twitter OAuth Error: ${error.message}</p>`;
+                } else {
+                    result.innerHTML = '<p class="text-green-600">✅ Twitter OAuth initiated successfully!</p>';
+                }
+            } catch (error) {
+                result.innerHTML = `<p class="text-red-600">❌ Twitter OAuth Failed: ${error.message}</p>`;
+            }
+        }
+
+        // Run tests
+        async function runTests() {
+            const configOk = checkConfig();
+            if (configOk) {
+                await testConnection();
+            }
+        }
+
+        // Event listeners
+        $('test-twitter').addEventListener('click', testTwitterOAuth);
+
+        // Start tests
+        runTests();
+    </script>
+</body>
+</html>
