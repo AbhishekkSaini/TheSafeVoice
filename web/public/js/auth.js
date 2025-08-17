@@ -45,12 +45,15 @@ export function mountAuthUiHooks() {
 
     updateLogoutVisibility();
     try {
-        supabase.auth.onAuthStateChange((_event, session) => {
+        supabase.auth.onAuthStateChange((event, session) => {
             updateLogoutVisibility();
-            // After OAuth/email verification returns, redirect signed-in users
-            if (session) {
-                const atForum = /forum\.html$/i.test(window.location.pathname);
-                if (!atForum) window.location.href = 'forum.html';
+            // Redirect only after explicit auth flows (login/signup/OAuth callback),
+            // do NOT force-redirect from homepage or other pages when already logged in
+            const path = window.location.pathname || '';
+            const isAuthPage = /login\.html$|signup\.html$/i.test(path);
+            const hasOAuthToken = /(access_token|code)=/i.test(window.location.hash || window.location.search);
+            if (session && (isAuthPage || hasOAuthToken)) {
+                window.location.href = 'forum.html';
             }
         });
     } catch {}

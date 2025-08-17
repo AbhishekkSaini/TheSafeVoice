@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Direct Message - TheSafeVoice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+      .chat-bubble{max-width:75%;}
+    </style>
+  </head>
+  <body class="font-sans bg-gradient-to-br from-slate-50 to-orange-50 min-h-screen">
+    <nav class="bg-white/90 backdrop-blur-md shadow sticky top-0 z-50 border-b border-orange-100">
+      <div class="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+        <a href="messages.html" class="text-gray-700 hover:text-orange-600 flex items-center"><i data-lucide="arrow-left" class="w-5 h-5 mr-2"></i>Back</a>
+        <div id="dmTitle" class="font-semibold"></div>
+        <div class="w-5"></div>
+      </div>
+    </nav>
+    <main class="max-w-3xl mx-auto px-4 py-4">
+      <div id="thread" class="space-y-2"></div>
+    </main>
+    <footer class="fixed bottom-0 left-0 right-0 bg-white border-t">
+      <div class="max-w-3xl mx-auto px-4 py-2 flex items-center gap-2">
+        <input id="dmInput" class="form-input flex-1" placeholder="Message" />
+        <button id="dmSend" class="px-4 py-2 bg-black text-white rounded">Send</button>
+      </div>
+    </footer>
+
+    <script src="js/config.js"></script>
+    <script type="module">
+      import { initSupabase, supabase, getUser } from './js/supabase.js';
+      initSupabase();
+      window.lucide && window.lucide.createIcons();
+
+      const params = new URLSearchParams(location.search);
+      const uname = params.get('u') || '';
+      const thread = document.getElementById('thread');
+      const title = document.getElementById('dmTitle');
+
+      const me = (await getUser());
+      if (!me) { location.href = 'login.html'; }
+
+      async function resolveUserByUsername(username){
+        const { data } = await supabase.from('profiles').select('id,username,display_name').eq('username', username).single();
+        return data || null;
+      }
+
+      const other = uname ? await resolveUserByUsername(uname) : null;
+      if (!other) { thread.innerHTML = '<div class="p-6 text-gray-600">No user selected</div>'; }
+      title.textContent = other?.username ? '@'+other.username : 'DM';
+
+      async function loadThread(){
+        const { data } = await supabase
+          .from('messages')
+          .select('id,body,created_at,sender_id,receiver_id')
+          .or(`and(sender_id.eq.${me.id},receiver_id.eq.${other.id}),and(sender_id.eq.${other.id},receiver_id.eq.${me.id})`)
+          .order('created_at',{ascending:true})
+          .limit(200);
+        thread.innerHTML = (data||[]).map(m => renderBubble(m)).join('');
+        window.scrollTo(0,document.body.scrollHeight);
+      }
+
+      function renderBubble(m){
+        const mine = m.sender_id === me.id;
+        const align = mine ? 'items-end' : 'items-start';
+        const bg = mine ? 'bg-black text-white' : 'bg-white';
+        return `<div class="flex ${align}"><div class="chat-bubble ${bg} rounded-2xl px-4 py-2">${escapeHtml(m.body)}</div></div>`;
+      }
+
+      document.getElementById('dmSend').addEventListener('click', async ()=>{
+        const inp = document.getElementById('dmInput');
+        const body = (inp.value||'').trim();
+        if (!body) return;
+        const { error } = await supabase.from('messages').insert({ sender_id: me.id, receiver_id: other.id, body });
+        if (error) { alert(error.message); return; }
+        inp.value='';
+      });
+
+      supabase.channel('dm_rt')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+          const m = payload.new||{};
+          if ((m.sender_id===me.id && m.receiver_id===other.id) || (m.sender_id===other.id && m.receiver_id===me.id)){
+            thread.insertAdjacentHTML('beforeend', renderBubble(m));
+            window.scrollTo(0,document.body.scrollHeight);
+          }
+        })
+        .subscribe();
+
+      function escapeHtml(s=''){ return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+      await loadThread();
+    </script>
+  </body>
+  </html>
+
+
