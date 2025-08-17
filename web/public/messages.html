@@ -30,11 +30,54 @@
             0%, 80%, 100% { transform: scale(0); }
             40% { transform: scale(1); }
         }
+        
+        /* Instagram-style message bubbles */
+        .my-message {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 18px 18px 4px 18px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .other-message {
+            background: #f1f1f1;
+            color: #262626;
+            border-radius: 18px 18px 18px 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        /* Solid backgrounds to fix transparency */
+        .conversation-item {
+            background: white !important;
+            border-bottom: 1px solid #e5e5e5;
+        }
+        
+        .conversation-item:hover {
+            background: #f8f9fa !important;
+        }
+        
+        .chat-container {
+            background: white !important;
+        }
+        
+        .message-input-container {
+            background: white !important;
+            border-top: 1px solid #e5e5e5;
+        }
+        
+        /* Ensure all backgrounds are solid */
+        .bg-white {
+            background-color: white !important;
+        }
+        
+        .chat-messages {
+            background: white !important;
+        }
     </style>
 </head>
 <body class="font-sans bg-white h-screen overflow-hidden">
     <!-- Instagram-style Navigation -->
-    <nav class="bg-white border-b border-gray-200 h-16 flex items-center px-6">
+    <nav class="bg-white border-b border-gray-200 h-16 flex items-center px-6 shadow-sm">
         <div class="flex items-center justify-between w-full max-w-6xl mx-auto">
             <!-- Logo -->
             <div class="flex items-center">
@@ -76,9 +119,9 @@
     <!-- Main Content -->
     <div class="flex h-[calc(100vh-4rem)]">
         <!-- Left Sidebar - Conversations -->
-        <div class="w-80 border-r border-gray-200 flex flex-col">
+        <div class="w-80 border-r border-gray-200 flex flex-col bg-white">
             <!-- Header -->
-            <div class="p-4 border-b border-gray-200">
+            <div class="p-4 border-b border-gray-200 bg-white">
                 <div class="flex items-center justify-between">
                     <h2 class="text-xl font-semibold text-gray-900">Messages</h2>
                     <button id="new-message-btn" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
@@ -88,7 +131,7 @@
             </div>
 
             <!-- Search Users -->
-            <div id="search-section" class="p-4 border-b border-gray-200 hidden">
+            <div id="search-section" class="p-4 border-b border-gray-200 bg-white hidden">
                 <div class="relative">
                     <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"></i>
                     <input id="user-search" placeholder="Search users..." class="w-full bg-gray-100 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
@@ -97,8 +140,8 @@
             </div>
 
             <!-- Conversations List -->
-            <div id="conversations-list" class="flex-1 overflow-y-auto">
-                <div id="no-conversations" class="p-8 text-center text-gray-500">
+            <div id="conversations-list" class="flex-1 overflow-y-auto bg-white">
+                <div id="no-conversations" class="p-8 text-center text-gray-500 bg-white">
                     <i data-lucide="send" class="w-12 h-12 mx-auto mb-4 text-gray-300"></i>
                     <p class="text-lg font-medium mb-2">Your messages</p>
                     <p class="text-sm">Send private messages to friends</p>
@@ -110,9 +153,9 @@
         </div>
 
         <!-- Right Side - Chat Area -->
-        <div class="flex-1 flex flex-col">
+        <div class="flex-1 flex flex-col bg-white">
             <!-- Chat Header -->
-            <div id="chat-header" class="h-16 border-b border-gray-200 flex items-center px-6 hidden">
+            <div id="chat-header" class="h-16 border-b border-gray-200 flex items-center px-6 bg-white hidden">
                 <div class="flex items-center space-x-3">
                     <div class="relative">
                         <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
@@ -133,17 +176,17 @@
             </div>
 
             <!-- Chat Messages -->
-            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 hidden">
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-white hidden">
                 <!-- Messages will be inserted here -->
             </div>
 
             <!-- Typing Indicator -->
-            <div id="typing-indicator" class="px-6 py-2 hidden">
+            <div id="typing-indicator" class="px-6 py-2 bg-white hidden">
                 <div class="flex items-center space-x-2">
                     <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
                         <i data-lucide="user" class="w-4 h-4 text-gray-500"></i>
                     </div>
-                    <div class="bg-gray-100 rounded-2xl px-4 py-2">
+                    <div class="other-message px-4 py-2">
                         <div class="flex space-x-1">
                             <div class="typing-indicator"></div>
                             <div class="typing-indicator"></div>
@@ -154,7 +197,7 @@
             </div>
 
             <!-- Message Input -->
-            <div id="message-input" class="p-4 border-t border-gray-200 hidden">
+            <div id="message-input" class="message-input-container p-4 hidden">
                 <div class="flex items-center space-x-3">
                     <button id="emoji-btn" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center">
                         <i data-lucide="smile" class="w-4 h-4 text-gray-600"></i>
@@ -173,7 +216,7 @@
             </div>
 
             <!-- Empty State -->
-            <div id="empty-state" class="flex-1 flex items-center justify-center">
+            <div id="empty-state" class="flex-1 flex items-center justify-center bg-white">
                 <div class="text-center">
                     <i data-lucide="send" class="w-16 h-16 mx-auto mb-4 text-gray-300"></i>
                     <h3 class="text-xl font-semibold text-gray-900 mb-2">Your messages</h3>
@@ -231,6 +274,7 @@
             startOnlineStatus();
             await loadConversations();
             setupEventListeners();
+            setupRealtimeSubscriptions();
             updateMessageBadge();
         }
 
@@ -288,10 +332,50 @@
 
                 conversations = conversationMap;
                 renderConversations();
-                setupRealtime();
             } catch (e) {
                 console.error('Failed to load conversations:', e);
             }
+        }
+
+        // Setup real-time subscriptions
+        function setupRealtimeSubscriptions() {
+            // Listen for new messages
+            messageChannel = supabase.channel('messages')
+                .on('postgres_changes', { 
+                    event: 'INSERT', 
+                    schema: 'public', 
+                    table: 'messages'
+                }, async (payload) => {
+                    const message = payload.new;
+                    console.log('New message received:', message);
+                    
+                    // If it's a message to/from us, update conversations
+                    if (message.sender_id === me.id || message.receiver_id === me.id) {
+                        await loadConversations();
+                        updateMessageBadge();
+                        
+                        // If we're in the chat with this user, add the message immediately
+                        if (currentChat && (message.sender_id === currentChat.id || message.receiver_id === currentChat.id)) {
+                            appendMessage(message);
+                        }
+                    }
+                })
+                .on('postgres_changes', { 
+                    event: 'UPDATE', 
+                    schema: 'public', 
+                    table: 'messages'
+                }, async (payload) => {
+                    const message = payload.new;
+                    console.log('Message updated:', message);
+                    
+                    // Update message status (read/delivered)
+                    if (currentChat && (message.sender_id === currentChat.id || message.receiver_id === currentChat.id)) {
+                        updateMessageStatus(message);
+                    }
+                })
+                .subscribe((status) => {
+                    console.log('Message channel status:', status);
+                });
         }
 
         // Show no conversations state
@@ -332,7 +416,7 @@
             const isFromMe = conv.lastMessage.sender_id === me.id;
             
             return `
-                <div data-conversation="${otherUser.id}" class="flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100">
+                <div data-conversation="${otherUser.id}" class="conversation-item flex items-center p-4 hover:bg-gray-50 cursor-pointer">
                     <div class="relative mr-3">
                         <div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
                             <i data-lucide="user" class="w-6 h-6 text-gray-500"></i>
@@ -410,7 +494,7 @@
             }
         }
 
-        // Render message
+        // Render message with Instagram-style bubbles
         function renderMessage(m) {
             const isMine = m.sender_id === me.id;
             const isRead = m.read_at !== null;
@@ -430,41 +514,47 @@
             const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             
             return `
-                <div class="flex ${isMine ? 'justify-end' : 'justify-start'}">
+                <div class="flex ${isMine ? 'justify-end' : 'justify-start'} mb-3" data-message-id="${m.id}">
                     <div class="max-w-[70%]">
                         <div class="flex items-end space-x-2 ${isMine ? 'flex-row-reverse space-x-reverse' : ''}">
                             ${!isMine ? '<div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0"><i data-lucide="user" class="w-3 h-3 text-gray-500"></i></div>' : ''}
-                            <div class="bg-gray-100 rounded-2xl px-4 py-2 ${isMine ? 'bg-blue-500 text-white' : ''}">
-                                <p class="text-sm">${escapeHtml(m.body)}</p>
+                            <div class="${isMine ? 'my-message' : 'other-message'} px-4 py-2">
+                                <p class="text-sm font-medium">${escapeHtml(m.body)}</p>
                             </div>
                         </div>
                         <div class="flex items-center space-x-1 mt-1 ${isMine ? 'justify-end' : 'justify-start'}">
                             <span class="text-xs text-gray-500">${time}</span>
-                            ${isMine ? `<span class="text-xs text-gray-500">${status}</span>` : ''}
+                            ${isMine ? `<span class="text-xs text-gray-500 message-status">${status}</span>` : ''}
                         </div>
                     </div>
                 </div>
             `;
         }
 
-        // Setup real-time for conversations list
-        function setupRealtime() {
-            // Listen for new messages
-            messageChannel = supabase.channel('conversations')
-                .on('postgres_changes', { 
-                    event: 'INSERT', 
-                    schema: 'public', 
-                    table: 'messages'
-                }, async (payload) => {
-                    const message = payload.new;
+        // Append message to chat
+        function appendMessage(m) {
+            chatMessages.insertAdjacentHTML('beforeend', renderMessage(m));
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Update message status
+        function updateMessageStatus(message) {
+            const messageEl = chatMessages.querySelector(`[data-message-id="${message.id}"]`);
+            if (messageEl) {
+                const statusEl = messageEl.querySelector('.message-status');
+                if (statusEl) {
+                    const isRead = message.read_at !== null;
+                    const isDelivered = message.delivered_at !== null;
                     
-                    // If it's a message to/from us, update conversations
-                    if (message.sender_id === me.id || message.receiver_id === me.id) {
-                        await loadConversations();
-                        updateMessageBadge();
+                    if (isRead) {
+                        statusEl.textContent = '✓✓';
+                    } else if (isDelivered) {
+                        statusEl.textContent = '✓✓';
+                    } else {
+                        statusEl.textContent = '✓';
                     }
-                })
-                .subscribe();
+                }
+            }
         }
 
         // Setup real-time for current conversation
@@ -520,16 +610,21 @@
             if (!text) return;
             
             try {
-                const { error } = await supabase.from('messages').insert({
+                const { data, error } = await supabase.from('messages').insert({
                     sender_id: me.id,
                     receiver_id: currentChat.id,
                     body: text
-                });
+                }).select();
                 
                 if (error) throw error;
                 
                 messageText.value = '';
                 sendBtn.disabled = true;
+                
+                // Add message to chat immediately
+                if (data && data[0]) {
+                    appendMessage(data[0]);
+                }
                 
                 // Mark as delivered
                 await supabase.rpc('mark_messages_delivered', { other_user_id: currentChat.id });
@@ -565,7 +660,7 @@
                         new Date(user.last_seen) > new Date(Date.now() - 5 * 60 * 1000);
                     
                     return `
-                        <div class="flex items-center p-3 hover:bg-gray-50 cursor-pointer" data-user-id="${user.id}">
+                        <div class="flex items-center p-3 hover:bg-gray-50 cursor-pointer bg-white" data-user-id="${user.id}">
                             <div class="relative mr-3">
                                 <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
                                     <i data-lucide="user" class="w-5 h-5 text-gray-500"></i>
