@@ -39,7 +39,12 @@
                 </div>
 
                 <!-- Desktop Navigation -->
-                <div class="flex items-center space-x-8">
+                <div class="flex items-center space-x-8 relative">
+                    <div class="hidden md:block relative">
+                        <input id="nav-user-search" placeholder="Search users" class="form-input md:w-64 rounded-full pl-10" />
+                        <i data-lucide="search" class="w-4 h-4 text-gray-500 absolute left-3 top-2.5"></i>
+                        <div id="nav-user-results" class="absolute mt-1 w-[260px] bg-white border rounded-xl shadow-lg hidden z-50"></div>
+                    </div>
                     <a href="#home" class="text-gray-700 hover:text-gray-900 transition-colors font-medium">Home</a>
                     <a href="#services" class="text-gray-700 hover:text-gray-900 transition-colors font-medium">Services</a>
                     <a href="forum.html" class="text-gray-700 hover:text-gray-900 transition-colors font-medium">Forum</a>
@@ -489,6 +494,7 @@
         import { mountSosButton, sendSOS } from './js/sos.js';
         import { initSupabase, supabase } from './js/supabase.js';
         import { mountAuthUiHooks } from './js/auth.js';
+        import { mountUserSearch } from './js/search.js';
         initSupabase();
         mountSosButton('#sosBtn');
         // Sync nav (Login/Signup vs Logout) with current session
@@ -496,6 +502,7 @@
         // Expose minimal bridge so existing modal can notify new SOS
         window.SafeVoiceSendSOS = async () => { try { await sendSOS(); } catch (e) { alert(e.message || 'SOS failed'); } };
         window.lucide && window.lucide.createIcons();
+        mountUserSearch('#nav-user-search', '#nav-user-results');
         // Trending + Categories + Quick Help Strip + New Member Hook + (optional) Safety Map
         // Reverted to original simple homepage blocks
         (async () => {

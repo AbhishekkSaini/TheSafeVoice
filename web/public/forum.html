@@ -20,8 +20,12 @@
                     </div>
                     <a href="index.html" class="text-xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">TheSafeVoice</a>
                 </div>
-                <div class="flex items-center space-x-6">
-                    <a href="search.html" class="text-gray-700 hover:text-orange-600">Search</a>
+                <div class="flex items-center space-x-6 relative">
+                    <div class="hidden md:block relative">
+                        <input id="nav-user-search" placeholder="Search users" class="form-input md:w-64 rounded-full pl-10" />
+                        <i data-lucide="search" class="w-4 h-4 text-gray-500 absolute left-3 top-2.5"></i>
+                        <div id="nav-user-results" class="absolute mt-1 w-[260px] bg-white border rounded-xl shadow-lg hidden z-50"></div>
+                    </div>
                     <a href="forum.html" class="text-gray-800 font-semibold">Forum</a>
                     <a href="resources.html" class="text-gray-700 hover:text-orange-600">Resources</a>
                     <a href="profile.html" class="text-gray-700 hover:text-orange-600">Profile</a>
@@ -82,10 +86,12 @@
         import { mountForum } from './js/forum.js';
         import { mountSosButton } from './js/sos.js';
         import { mountAuthUiHooks } from './js/auth.js';
+        import { mountUserSearch } from './js/search.js';
         mountAuthUiHooks();
         mountSosButton('#sosBtn');
         window.lucide && window.lucide.createIcons();
         mountForum();
+        mountUserSearch('#nav-user-search', '#nav-user-results');
     </script>
 </body>
 </html>
