@@ -1,4 +1,5 @@
 import { initSupabase, supabase, getUser } from './supabase.js';
+import { showError } from './ui.js';
 
 function q(sel, parent = document) { return parent.querySelector(sel); }
 function qa(sel, parent = document) { return Array.from(parent.querySelectorAll(sel)); }
@@ -18,10 +19,7 @@ export async function mountThread() {
 async function renderPost(postId) {
     const container = q('#thread-post');
     const { data, error } = await supabase.from('posts_view').select('*').eq('id', postId).single();
-    if (error) {
-        container.innerHTML = `<div class="text-red-600">${error.message}</div>`;
-        return;
-    }
+    if (error) { container.innerHTML = `<div class="text-red-600">${error.message}</div>`; return; }
     const p = data;
     const created = new Date(p.created_at);
     const authorLabel = p.is_anonymous ? 'Anonymous' : (p.author_display_name || 'Member');
@@ -111,7 +109,7 @@ function mountCommentComposer(postId) {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const body = q('#comment-body')?.value?.trim();
-        if (!body) return;
+        if (!body) return showError('Write a comment first');
         const user = await getUser();
         const { error } = await supabase.from('comments').insert({
             post_id: postId,
@@ -119,7 +117,7 @@ function mountCommentComposer(postId) {
             is_anonymous: !!anonToggle?.checked,
             author_id: user?.id || null
         });
-        if (error) return alert(error.message);
+        if (error) return showError(error.message);
         form.reset();
         await renderComments(postId);
     });

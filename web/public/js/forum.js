@@ -1,4 +1,5 @@
 import { initSupabase, supabase, getUser, ensureProfile } from './supabase.js';
+import { showError } from './ui.js';
 
 const CATEGORY_KEYS = [
     { key: 'safety_tips', label: 'Safety Tips' },
@@ -72,7 +73,7 @@ function mountComposer(user) {
         const body = q('#composer-body')?.value?.trim();
         const category = catSelect?.value || null;
         const isAnonymous = !!anonToggle?.checked;
-        if (!title || !body) return alert('Please provide a title and content');
+        if (!title || !body) return showError('Please provide a title and content');
 
         const sessionUser = await getUser();
         const userId = sessionUser?.id || null;
@@ -84,7 +85,7 @@ function mountComposer(user) {
             is_anonymous: isAnonymous,
             author_id: userId
         }).select('id').single();
-        if (error) return alert(error.message);
+        if (error) return showError(error.message);
         form.reset();
         await renderFeed();
     });
