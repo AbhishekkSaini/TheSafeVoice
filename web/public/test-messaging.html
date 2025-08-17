@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Messaging - SafeVoice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto p-6">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8">🧪 Messaging System Test</h1>
+        
+        <!-- Connection Status -->
+        <div id="connection-status" class="mb-6 p-4 rounded-lg bg-yellow-100 border border-yellow-300">
+            <h2 class="font-semibold text-yellow-800">🔌 Testing Connection...</h2>
+            <p class="text-yellow-700 text-sm">Checking Supabase connection and authentication...</p>
+        </div>
+
+        <!-- User Authentication -->
+        <div id="auth-section" class="mb-8 p-6 bg-white rounded-lg shadow-sm border hidden">
+            <h2 class="text-xl font-semibold mb-4">👤 Authentication</h2>
+            <div id="user-info" class="mb-4"></div>
+            <button id="login-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Login</button>
+            <button id="logout-btn" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 ml-2 hidden">Logout</button>
+        </div>
+
+        <!-- User Search Test -->
+        <div id="search-section" class="mb-8 p-6 bg-white rounded-lg shadow-sm border hidden">
+            <h2 class="text-xl font-semibold mb-4">🔍 User Search Test</h2>
+            <div class="mb-4">
+                <input id="search-input" type="text" placeholder="Search for users by display name..." 
+                       class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div id="search-results" class="space-y-2"></div>
+        </div>
+
+        <!-- Messaging Test -->
+        <div id="messaging-section" class="mb-8 p-6 bg-white rounded-lg shadow-sm border hidden">
+            <h2 class="text-xl font-semibold mb-4">💬 Messaging Test</h2>
+            <div id="conversation-list" class="mb-4 p-4 bg-gray-50 rounded-lg">
+                <h3 class="font-medium mb-2">Recent Conversations:</h3>
+                <div id="conversations" class="space-y-2"></div>
+            </div>
+            <div id="chat-window" class="border rounded-lg p-4 min-h-64 hidden">
+                <div id="chat-messages" class="space-y-2 mb-4 max-h-48 overflow-y-auto"></div>
+                <div class="flex gap-2">
+                    <input id="message-input" type="text" placeholder="Type a message..." 
+                           class="flex-1 p-2 border rounded-lg">
+                    <button id="send-btn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Results -->
+        <div id="test-results" class="p-6 bg-white rounded-lg shadow-sm border">
+            <h2 class="text-xl font-semibold mb-4">📊 Test Results</h2>
+            <div id="results-list" class="space-y-2">
+                <div class="flex items-center gap-2">
+                    <span class="w-4 h-4 rounded-full bg-gray-300"></span>
+                    <span>Waiting for tests to run...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script type="module">
+        import { initSupabase, supabase, getUser } from './js/supabase.js';
+
+        // Initialize
+        initSupabase();
+        
+        const $ = (id) => document.getElementById(id);
+        let currentUser = null;
+        let selectedUser = null;
+
+        // Test results tracking
+        const testResults = {
+            connection: false,
+            authentication: false,
+            userSearch: false,
+            messaging: false
+        };
+
+        function updateTestResults() {
+            const resultsList = $('results-list');
+            resultsList.innerHTML = Object.entries(testResults).map(([test, passed]) => `
+                <div class="flex items-center gap-2">
+                    <span class="w-4 h-4 rounded-full ${passed ? 'bg-green-500' : 'bg-red-500'}"></span>
+                    <span class="${passed ? 'text-green-700' : 'text-red-700'}">${test.charAt(0).toUpperCase() + test.slice(1)}: ${passed ? 'PASSED' : 'FAILED'}</span>
+                </div>
+            `).join('');
+        }
+
+        // Test 1: Connection
+        async function testConnection() {
+            try {
+                const { data, error } = await supabase.from('profiles').select('count').limit(1);
+                if (error) throw error;
+                
+                testResults.connection = true;
+                $('connection-status').innerHTML = `
+                    <h2 class="font-semibold text-green-800">✅ Connection Successful!</h2>
+                    <p class="text-green-700 text-sm">Supabase connection is working properly.</p>
+                `;
+                $('connection-status').className = 'mb-6 p-4 rounded-lg bg-green-100 border border-green-300';
+                
+                // Show auth section
+                $('auth-section').classList.remove('hidden');
+                updateTestResults();
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                $('connection-status').innerHTML = `
+                    <h2 class="font-semibold text-red-800">❌ Connection Failed!</h2>
+                    <p class="text-red-700 text-sm">Error: ${error.message}</p>
+                `;
+                $('connection-status').className = 'mb-6 p-4 rounded-lg bg-red-100 border border-red-300';
+                updateTestResults();
+            }
+        }
+
+        // Test 2: Authentication
+        async function testAuthentication() {
+            try {
+                currentUser = await getUser();
+                if (currentUser) {
+                    testResults.authentication = true;
+                    $('user-info').innerHTML = `
+                        <div class="p-3 bg-green-50 rounded-lg">
+                            <p class="font-medium">✅ Logged in as: ${currentUser.email}</p>
+                            <p class="text-sm text-gray-600">User ID: ${currentUser.id}</p>
+                        </div>
+                    `;
+                    $('login-btn').classList.add('hidden');
+                    $('logout-btn').classList.remove('hidden');
+                    
+                    // Show search section
+                    $('search-section').classList.remove('hidden');
+                    $('messaging-section').classList.remove('hidden');
+                } else {
+                    $('user-info').innerHTML = `
+                        <div class="p-3 bg-yellow-50 rounded-lg">
+                            <p class="font-medium">⚠️ Not logged in</p>
+                            <p class="text-sm text-gray-600">Please login to test messaging features</p>
+                        </div>
+                    `;
+                }
+                updateTestResults();
+            } catch (error) {
+                console.error('Auth test failed:', error);
+                updateTestResults();
+            }
+        }
+
+        // Test 3: User Search
+        async function testUserSearch(query) {
+            try {
+                const { data: users, error } = await supabase
+                    .from('profiles')
+                    .select('id, display_name, email')
+                    .ilike('display_name', `%${query}%`)
+                    .limit(5);
+                
+                if (error) throw error;
+                
+                testResults.userSearch = true;
+                const resultsDiv = $('search-results');
+                
+                if (users && users.length > 0) {
+                    resultsDiv.innerHTML = users.map(user => `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div>
+                                <p class="font-medium">@${user.display_name || 'User'}</p>
+                                <p class="text-sm text-gray-600">${user.email}</p>
+                            </div>
+                            <button onclick="selectUser('${user.id}', '${user.display_name || 'User'}')" 
+                                    class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                                Message
+                            </button>
+                        </div>
+                    `).join('');
+                } else {
+                    resultsDiv.innerHTML = '<p class="text-gray-500">No users found</p>';
+                }
+                updateTestResults();
+            } catch (error) {
+                console.error('User search failed:', error);
+                updateTestResults();
+            }
+        }
+
+        // Test 4: Messaging
+        async function testMessaging() {
+            try {
+                // Load conversations
+                const { data: messages } = await supabase
+                    .from('messages')
+                    .select('id, body, created_at, sender_id, receiver_id')
+                    .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                
+                if (messages && messages.length > 0) {
+                    testResults.messaging = true;
+                    const conversationsDiv = $('conversations');
+                    
+                    // Group by conversation
+                    const conversationMap = {};
+                    messages.forEach(msg => {
+                        const otherId = msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id;
+                        if (!conversationMap[otherId]) {
+                            conversationMap[otherId] = msg;
+                        }
+                    });
+                    
+                    conversationsDiv.innerHTML = Object.entries(conversationMap).map(([otherId, msg]) => `
+                        <div class="flex items-center justify-between p-2 bg-white rounded border">
+                            <span class="text-sm">Conversation with ${otherId}</span>
+                            <span class="text-xs text-gray-500">${new Date(msg.created_at).toLocaleDateString()}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    $('conversations').innerHTML = '<p class="text-gray-500 text-sm">No conversations yet</p>';
+                }
+                updateTestResults();
+            } catch (error) {
+                console.error('Messaging test failed:', error);
+                updateTestResults();
+            }
+        }
+
+        // Global function for user selection
+        window.selectUser = function(userId, displayName) {
+            selectedUser = { id: userId, displayName };
+            $('chat-window').classList.remove('hidden');
+            $('chat-messages').innerHTML = `<p class="text-gray-500 text-center">Chat with @${displayName}</p>`;
+        };
+
+        // Event listeners
+        $('login-btn').addEventListener('click', () => {
+            window.location.href = 'login.html';
+        });
+
+        $('logout-btn').addEventListener('click', async () => {
+            await supabase.auth.signOut();
+            window.location.reload();
+        });
+
+        $('search-input').addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            if (query.length >= 2) {
+                testUserSearch(query);
+            } else {
+                $('search-results').innerHTML = '';
+            }
+        });
+
+        $('send-btn').addEventListener('click', async () => {
+            if (!selectedUser || !currentUser) return;
+            
+            const messageText = $('message-input').value.trim();
+            if (!messageText) return;
+            
+            try {
+                const { error } = await supabase.from('messages').insert({
+                    sender_id: currentUser.id,
+                    receiver_id: selectedUser.id,
+                    body: messageText
+                });
+                
+                if (error) throw error;
+                
+                // Add message to chat
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'p-2 bg-blue-100 rounded-lg ml-auto max-w-xs';
+                messageDiv.textContent = messageText;
+                $('chat-messages').appendChild(messageDiv);
+                
+                $('message-input').value = '';
+                testResults.messaging = true;
+                updateTestResults();
+            } catch (error) {
+                console.error('Send message failed:', error);
+            }
+        });
+
+        // Run tests
+        testConnection().then(() => {
+            testAuthentication();
+            if (currentUser) {
+                testMessaging();
+            }
+        });
+    </script>
+</body>
+</html>
