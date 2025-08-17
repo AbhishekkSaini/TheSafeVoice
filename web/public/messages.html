@@ -9,57 +9,178 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .message-badge {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+        }
+        .online-dot {
+            background: #00d2d3;
+        }
+        .typing-indicator {
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: #666;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        .typing-indicator:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+    </style>
 </head>
-<body class="font-sans bg-gradient-to-br from-slate-50 to-orange-50 min-h-screen">
-    <nav class="bg-white/90 backdrop-blur-md shadow sticky top-0 z-50 border-b border-orange-100">
-        <div class="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
-            <a href="index.html" class="text-gray-700 hover:text-orange-600 flex items-center">
-                <i data-lucide="arrow-left" class="w-5 h-5 mr-2"></i>Back
-            </a>
-            <div class="font-semibold">Messages</div>
-            <a href="profile.html" class="text-gray-700 hover:text-orange-600">Profile</a>
+<body class="font-sans bg-white h-screen overflow-hidden">
+    <!-- Instagram-style Navigation -->
+    <nav class="bg-white border-b border-gray-200 h-16 flex items-center px-6">
+        <div class="flex items-center justify-between w-full max-w-6xl mx-auto">
+            <!-- Logo -->
+            <div class="flex items-center">
+                <div class="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center mr-3">
+                    <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
+                </div>
+                <span class="text-xl font-bold text-gray-900">SafeVoice</span>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="flex-1 max-w-md mx-8">
+                <div class="relative">
+                    <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                    <input id="global-search" placeholder="Search" class="w-full bg-gray-100 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                </div>
+            </div>
+
+            <!-- Navigation Icons -->
+            <div class="flex items-center space-x-6">
+                <a href="index.html" class="text-gray-600 hover:text-gray-900">
+                    <i data-lucide="home" class="w-6 h-6"></i>
+                </a>
+                <a href="forum.html" class="text-gray-600 hover:text-gray-900">
+                    <i data-lucide="compass" class="w-6 h-6"></i>
+                </a>
+                <div class="relative">
+                    <button id="messages-icon" class="text-gray-600 hover:text-gray-900 relative">
+                        <i data-lucide="send" class="w-6 h-6"></i>
+                        <span id="message-badge" class="message-badge absolute -top-2 -right-2 w-5 h-5 rounded-full text-white text-xs flex items-center justify-center font-bold hidden">0</span>
+                    </button>
+                </div>
+                <a href="profile.html" class="text-gray-600 hover:text-gray-900">
+                    <i data-lucide="user" class="w-6 h-6"></i>
+                </a>
+            </div>
         </div>
     </nav>
 
-    <div class="max-w-4xl mx-auto px-4 py-4">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-8rem)]">
-            <!-- Left: Conversations List -->
-            <div class="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="p-4 border-b border-gray-100">
-                    <input id="sv-search" placeholder="Search users to message..." class="w-full border rounded-full px-4 py-2 text-sm outline-none"/>
+    <!-- Main Content -->
+    <div class="flex h-[calc(100vh-4rem)]">
+        <!-- Left Sidebar - Conversations -->
+        <div class="w-80 border-r border-gray-200 flex flex-col">
+            <!-- Header -->
+            <div class="p-4 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-semibold text-gray-900">Messages</h2>
+                    <button id="new-message-btn" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
+                        <i data-lucide="edit-3" class="w-4 h-4 text-gray-600"></i>
+                    </button>
                 </div>
-                
-                <div id="sv-results" class="hidden p-2 border-b border-gray-100 max-h-48 overflow-y-auto"></div>
-                
-                <div id="sv-list" class="overflow-y-auto h-[calc(100%-4rem)]">
-                    <div class="p-6 text-gray-500 text-center text-sm">
-                        No conversations yet. Search for users above to start messaging!
+            </div>
+
+            <!-- Search Users -->
+            <div id="search-section" class="p-4 border-b border-gray-200 hidden">
+                <div class="relative">
+                    <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                    <input id="user-search" placeholder="Search users..." class="w-full bg-gray-100 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                </div>
+                <div id="search-results" class="mt-2 space-y-1"></div>
+            </div>
+
+            <!-- Conversations List -->
+            <div id="conversations-list" class="flex-1 overflow-y-auto">
+                <div id="no-conversations" class="p-8 text-center text-gray-500">
+                    <i data-lucide="send" class="w-12 h-12 mx-auto mb-4 text-gray-300"></i>
+                    <p class="text-lg font-medium mb-2">Your messages</p>
+                    <p class="text-sm">Send private messages to friends</p>
+                    <button id="start-messaging-btn" class="mt-4 bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                        Send message
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side - Chat Area -->
+        <div class="flex-1 flex flex-col">
+            <!-- Chat Header -->
+            <div id="chat-header" class="h-16 border-b border-gray-200 flex items-center px-6 hidden">
+                <div class="flex items-center space-x-3">
+                    <div class="relative">
+                        <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                            <i data-lucide="user" class="w-5 h-5 text-gray-500"></i>
+                        </div>
+                        <div id="online-indicator" class="online-dot absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white hidden"></div>
+                    </div>
+                    <div>
+                        <h3 id="chat-user-name" class="font-semibold text-gray-900">User Name</h3>
+                        <p id="chat-user-status" class="text-sm text-gray-500">offline</p>
+                    </div>
+                </div>
+                <div class="ml-auto">
+                    <button id="chat-info-btn" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center">
+                        <i data-lucide="info" class="w-4 h-4 text-gray-600"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat Messages -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 hidden">
+                <!-- Messages will be inserted here -->
+            </div>
+
+            <!-- Typing Indicator -->
+            <div id="typing-indicator" class="px-6 py-2 hidden">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                        <i data-lucide="user" class="w-4 h-4 text-gray-500"></i>
+                    </div>
+                    <div class="bg-gray-100 rounded-2xl px-4 py-2">
+                        <div class="flex space-x-1">
+                            <div class="typing-indicator"></div>
+                            <div class="typing-indicator"></div>
+                            <div class="typing-indicator"></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right: Chat Area -->
-            <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
-                <!-- Chat Header -->
-                <div id="sv-header" class="p-4 border-b border-gray-100 bg-gray-50">
-                    <div class="text-center text-gray-500">Select a conversation to start messaging</div>
-                </div>
-
-                <!-- Chat Messages -->
-                <div id="sv-chat" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
-
-                <!-- Typing Indicator -->
-                <div id="sv-typing" class="hidden px-4 py-1 text-xs text-gray-500">Typing...</div>
-
-                <!-- Message Input -->
-                <div class="p-4 border-t border-gray-100 bg-gray-50">
-                    <div class="flex items-center gap-2">
-                        <button id="sv-emoji" class="text-gray-500 hover:text-gray-700">😊</button>
-                        <button id="sv-attach" class="text-gray-500 hover:text-gray-700">📎</button>
-                        <input id="sv-input" placeholder="Message..." class="flex-1 border rounded-full px-4 py-2 text-sm outline-none" disabled/>
-                        <button id="sv-send" class="px-4 py-2 bg-black text-white rounded-full text-sm disabled:opacity-50" disabled>Send</button>
+            <!-- Message Input -->
+            <div id="message-input" class="p-4 border-t border-gray-200 hidden">
+                <div class="flex items-center space-x-3">
+                    <button id="emoji-btn" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center">
+                        <i data-lucide="smile" class="w-4 h-4 text-gray-600"></i>
+                    </button>
+                    <button id="attach-btn" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center">
+                        <i data-lucide="paperclip" class="w-4 h-4 text-gray-600"></i>
+                    </button>
+                    <div class="flex-1 relative">
+                        <input id="message-text" placeholder="Message..." class="w-full bg-gray-100 rounded-full px-4 py-2 pr-12 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        <button id="send-btn" class="absolute right-2 top-1/2 transform -translate-y-1/2 w-6 h-6 rounded-full bg-blue-500 hover:bg-blue-600 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i data-lucide="send" class="w-3 h-3 text-white"></i>
+                        </button>
                     </div>
-                    <input type="file" id="sv-file" class="hidden" accept="image/*,video/*,audio/*"/>
+                </div>
+                <input type="file" id="file-input" class="hidden" accept="image/*,video/*,audio/*">
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state" class="flex-1 flex items-center justify-center">
+                <div class="text-center">
+                    <i data-lucide="send" class="w-16 h-16 mx-auto mb-4 text-gray-300"></i>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">Your messages</h3>
+                    <p class="text-gray-500 mb-4">Send private photos and messages to a friend or group.</p>
+                    <button id="send-message-btn" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                        Send message
+                    </button>
                 </div>
             </div>
         </div>
@@ -72,23 +193,32 @@
         window.lucide && window.lucide.createIcons();
 
         let me = null;
-        let other = null;
-        let usersMap = {};
+        let currentChat = null;
+        let conversations = new Map();
         let typingTimer = null;
         let onlineStatusTimer = null;
         let typingChannel = null;
         let messageChannel = null;
         let onlineChannel = null;
+        let unreadCount = 0;
 
         // DOM elements
-        const listEl = document.getElementById('sv-list');
-        const resultsEl = document.getElementById('sv-results');
-        const searchEl = document.getElementById('sv-search');
-        const chatEl = document.getElementById('sv-chat');
-        const headerEl = document.getElementById('sv-header');
-        const inputEl = document.getElementById('sv-input');
-        const fileEl = document.getElementById('sv-file');
-        const typingEl = document.getElementById('sv-typing');
+        const conversationsList = document.getElementById('conversations-list');
+        const noConversations = document.getElementById('no-conversations');
+        const searchSection = document.getElementById('search-section');
+        const searchResults = document.getElementById('search-results');
+        const userSearch = document.getElementById('user-search');
+        const chatHeader = document.getElementById('chat-header');
+        const chatMessages = document.getElementById('chat-messages');
+        const typingIndicator = document.getElementById('typing-indicator');
+        const messageInput = document.getElementById('message-input');
+        const emptyState = document.getElementById('empty-state');
+        const messageText = document.getElementById('message-text');
+        const sendBtn = document.getElementById('send-btn');
+        const messageBadge = document.getElementById('message-badge');
+        const newMessageBtn = document.getElementById('new-message-btn');
+        const startMessagingBtn = document.getElementById('start-messaging-btn');
+        const sendMessageBtn = document.getElementById('send-message-btn');
 
         // Initialize
         async function init() {
@@ -98,19 +228,14 @@
                 return;
             }
 
-            // Start online status updates
             startOnlineStatus();
-            
-            // Load conversations
             await loadConversations();
-            
-            // Setup event listeners
             setupEventListeners();
+            updateMessageBadge();
         }
 
         // Start online status updates
         function startOnlineStatus() {
-            // Update online status every 30 seconds
             const updateStatus = async () => {
                 try {
                     await supabase.rpc('update_online_status');
@@ -119,129 +244,152 @@
                 }
             };
             
-            updateStatus(); // Update immediately
-            onlineStatusTimer = setInterval(updateStatus, 30000); // Then every 30 seconds
+            updateStatus();
+            onlineStatusTimer = setInterval(updateStatus, 30000);
         }
 
         // Load conversations
         async function loadConversations() {
             try {
-                const { data: conversations } = await supabase
+                const { data: messages } = await supabase
                     .from('messages')
                     .select(`
-                        id, body, created_at, sender_id, receiver_id,
-                        profiles!messages_sender_id_fkey(id, display_name, online_status, last_seen)
+                        id, body, created_at, sender_id, receiver_id, read_at,
+                        sender:profiles!messages_sender_id_fkey(id, display_name, online_status, last_seen),
+                        receiver:profiles!messages_receiver_id_fkey(id, display_name, online_status, last_seen)
                     `)
                     .or(`sender_id.eq.${me.id},receiver_id.eq.${me.id}`)
                     .order('created_at', { ascending: false });
 
-                if (!conversations || conversations.length === 0) {
-                    listEl.innerHTML = '<div class="p-6 text-gray-500 text-center text-sm">No conversations yet. Search for users above to start messaging!</div>';
+                if (!messages || messages.length === 0) {
+                    showNoConversations();
                     return;
                 }
 
                 // Group by conversation partner
                 const conversationMap = new Map();
-                conversations.forEach(msg => {
+                messages.forEach(msg => {
                     const otherId = msg.sender_id === me.id ? msg.receiver_id : msg.sender_id;
+                    const otherUser = msg.sender_id === me.id ? msg.receiver : msg.sender;
+                    
                     if (!conversationMap.has(otherId)) {
                         conversationMap.set(otherId, {
                             lastMessage: msg,
-                            otherUser: msg.profiles
+                            otherUser: otherUser,
+                            unreadCount: 0
                         });
+                    }
+                    
+                    // Count unread messages
+                    if (msg.sender_id === otherId && msg.receiver_id === me.id && !msg.read_at) {
+                        conversationMap.get(otherId).unreadCount++;
                     }
                 });
 
-                // Render conversations
-                listEl.innerHTML = Array.from(conversationMap.values())
-                    .map(conv => renderConversation(conv))
-                    .join('');
-
-                // Add click listeners
-                Array.from(listEl.querySelectorAll('[data-conversation]')).forEach(btn => {
-                    btn.addEventListener('click', () => openConversation(btn.getAttribute('data-conversation')));
-                });
+                conversations = conversationMap;
+                renderConversations();
+                setupRealtime();
             } catch (e) {
                 console.error('Failed to load conversations:', e);
             }
         }
 
+        // Show no conversations state
+        function showNoConversations() {
+            noConversations.classList.remove('hidden');
+            conversationsList.innerHTML = '';
+            conversationsList.appendChild(noConversations);
+        }
+
+        // Render conversations
+        function renderConversations() {
+            if (conversations.size === 0) {
+                showNoConversations();
+                return;
+            }
+
+            noConversations.classList.add('hidden');
+            const conversationsHTML = Array.from(conversations.values())
+                .map(conv => renderConversationItem(conv))
+                .join('');
+
+            conversationsList.innerHTML = conversationsHTML;
+            
+            // Add click listeners
+            Array.from(conversationsList.querySelectorAll('[data-conversation]')).forEach(btn => {
+                btn.addEventListener('click', () => openConversation(btn.getAttribute('data-conversation')));
+            });
+        }
+
         // Render conversation item
-        function renderConversation(conv) {
+        function renderConversationItem(conv) {
             const otherUser = conv.otherUser;
             const isOnline = otherUser.online_status && 
                 new Date(otherUser.last_seen) > new Date(Date.now() - 5 * 60 * 1000);
             
+            const timeAgo = getTimeAgo(conv.lastMessage.created_at);
+            const messagePreview = conv.lastMessage.body || 'Sent a message';
+            const isFromMe = conv.lastMessage.sender_id === me.id;
+            
             return `
-                <button data-conversation="${otherUser.id}" class="w-full p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0">
-                    <div class="flex items-center gap-3">
-                        <div class="relative">
-                            <div class="w-11 h-11 rounded-full bg-gray-200 flex items-center justify-center">
-                                <span class="text-gray-500 text-lg">👤</span>
-                            </div>
-                            ${isOnline ? '<div class="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>' : ''}
+                <div data-conversation="${otherUser.id}" class="flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100">
+                    <div class="relative mr-3">
+                        <div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
+                            <i data-lucide="user" class="w-6 h-6 text-gray-500"></i>
                         </div>
-                        <div class="flex-1 min-w-0 text-left">
-                            <div class="flex items-center gap-2">
-                                <span class="font-medium text-gray-800 text-sm">@${otherUser.display_name || 'User'}</span>
-                                ${isOnline ? '<span class="text-xs text-green-600">● online</span>' : ''}
-                            </div>
-                            <div class="text-xs text-gray-500 truncate">${conv.lastMessage.body || 'No messages yet'}</div>
+                        ${isOnline ? '<div class="online-dot absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white"></div>' : ''}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-semibold text-gray-900 truncate">${otherUser.display_name || 'User'}</h4>
+                            <span class="text-xs text-gray-500">${timeAgo}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm text-gray-600 truncate">
+                                ${isFromMe ? 'You: ' : ''}${messagePreview}
+                            </p>
+                            ${conv.unreadCount > 0 ? `<span class="message-badge text-xs px-2 py-1 rounded-full">${conv.unreadCount}</span>` : ''}
                         </div>
                     </div>
-                </button>
+                </div>
             `;
         }
 
         // Open conversation
         async function openConversation(userId) {
             try {
-                // Get user details
-                const { data: user } = await supabase
-                    .from('profiles')
-                    .select('id, display_name, online_status, last_seen')
-                    .eq('id', userId)
-                    .single();
+                const conv = conversations.get(userId);
+                if (!conv) return;
 
-                if (!user) return;
-
-                other = user;
-                usersMap[user.id] = user;
+                currentChat = conv.otherUser;
+                
+                // Update UI
+                chatHeader.classList.remove('hidden');
+                chatMessages.classList.remove('hidden');
+                messageInput.classList.remove('hidden');
+                emptyState.classList.add('hidden');
 
                 // Update header
-                const isOnline = user.online_status && 
-                    new Date(user.last_seen) > new Date(Date.now() - 5 * 60 * 1000);
+                const isOnline = currentChat.online_status && 
+                    new Date(currentChat.last_seen) > new Date(Date.now() - 5 * 60 * 1000);
                 
-                headerEl.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <div class="relative">
-                            <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                                <span class="text-gray-500 text-sm">👤</span>
-                            </div>
-                            ${isOnline ? '<div class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border border-white"></div>' : ''}
-                        </div>
-                        <div>
-                            <div class="font-semibold">@${user.display_name || 'User'}</div>
-                            <div class="text-xs text-gray-500">${isOnline ? '● online' : '○ offline'}</div>
-                        </div>
-                    </div>
-                `;
-
-                // Enable input
-                inputEl.disabled = false;
-                document.getElementById('sv-send').disabled = false;
+                document.getElementById('chat-user-name').textContent = currentChat.display_name || 'User';
+                document.getElementById('chat-user-status').textContent = isOnline ? 'online' : 'offline';
+                document.getElementById('online-indicator').classList.toggle('hidden', !isOnline);
 
                 // Load messages
                 await loadMessages();
 
                 // Mark messages as read
                 await supabase.rpc('mark_messages_read', { other_user_id: userId });
+                conv.unreadCount = 0;
+                updateMessageBadge();
 
-                // Setup real-time
-                setupRealtime();
+                // Setup real-time for this conversation
+                setupConversationRealtime();
 
-                // Clear chat and scroll to bottom
-                chatEl.scrollTop = chatEl.scrollHeight;
+                // Scroll to bottom
+                chatMessages.scrollTop = chatMessages.scrollHeight;
             } catch (e) {
                 console.error('Failed to open conversation:', e);
             }
@@ -253,58 +401,79 @@
                 const { data: messages } = await supabase
                     .from('messages')
                     .select('*')
-                    .or(`and(sender_id.eq.${me.id},receiver_id.eq.${other.id}),and(sender_id.eq.${other.id},receiver_id.eq.${me.id})`)
+                    .or(`and(sender_id.eq.${me.id},receiver_id.eq.${currentChat.id}),and(sender_id.eq.${currentChat.id},receiver_id.eq.${me.id})`)
                     .order('created_at', { ascending: true });
 
-                chatEl.innerHTML = (messages || []).map(m => renderBubble(m)).join('');
-                chatEl.scrollTop = chatEl.scrollHeight;
+                chatMessages.innerHTML = (messages || []).map(m => renderMessage(m)).join('');
             } catch (e) {
                 console.error('Failed to load messages:', e);
             }
         }
 
-        // Render message bubble
-        function renderBubble(m) {
-            const mine = m.sender_id === me.id;
+        // Render message
+        function renderMessage(m) {
+            const isMine = m.sender_id === me.id;
             const isRead = m.read_at !== null;
             const isDelivered = m.delivered_at !== null;
             
             let status = '';
-            if (mine) {
+            if (isMine) {
                 if (isRead) {
                     status = '✓✓'; // Read
                 } else if (isDelivered) {
-                    status = '✓✓'; // Delivered (blue in WhatsApp, but we'll use same for now)
+                    status = '✓✓'; // Delivered
                 } else {
                     status = '✓'; // Sent
                 }
             }
 
-            const attachment = m.attachment_url ? `<img src="${m.attachment_url}" class="rounded mb-1 max-h-64 object-cover"/>` : '';
-            const body = m.body ? escapeHtml(m.body) : '';
+            const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             
             return `
-                <div class="flex ${mine ? 'justify-end' : 'justify-start'}">
-                    <div class="max-w-[75%] rounded-2xl px-3 py-2 ${mine ? 'bg-black text-white' : 'bg-white border'}">
-                        ${attachment}${body}
-                        <div class="text-[10px] opacity-60 mt-1 flex items-center gap-1">
-                            <span>${new Date(m.created_at).toLocaleTimeString()}</span>
-                            ${mine ? `<span>${status}</span>` : ''}
+                <div class="flex ${isMine ? 'justify-end' : 'justify-start'}">
+                    <div class="max-w-[70%]">
+                        <div class="flex items-end space-x-2 ${isMine ? 'flex-row-reverse space-x-reverse' : ''}">
+                            ${!isMine ? '<div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0"><i data-lucide="user" class="w-3 h-3 text-gray-500"></i></div>' : ''}
+                            <div class="bg-gray-100 rounded-2xl px-4 py-2 ${isMine ? 'bg-blue-500 text-white' : ''}">
+                                <p class="text-sm">${escapeHtml(m.body)}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1 mt-1 ${isMine ? 'justify-end' : 'justify-start'}">
+                            <span class="text-xs text-gray-500">${time}</span>
+                            ${isMine ? `<span class="text-xs text-gray-500">${status}</span>` : ''}
                         </div>
                     </div>
                 </div>
             `;
         }
 
-        // Setup real-time connections
+        // Setup real-time for conversations list
         function setupRealtime() {
-            // Clean up existing channels
+            // Listen for new messages
+            messageChannel = supabase.channel('conversations')
+                .on('postgres_changes', { 
+                    event: 'INSERT', 
+                    schema: 'public', 
+                    table: 'messages'
+                }, async (payload) => {
+                    const message = payload.new;
+                    
+                    // If it's a message to/from us, update conversations
+                    if (message.sender_id === me.id || message.receiver_id === me.id) {
+                        await loadConversations();
+                        updateMessageBadge();
+                    }
+                })
+                .subscribe();
+        }
+
+        // Setup real-time for current conversation
+        function setupConversationRealtime() {
             if (typingChannel) typingChannel.unsubscribe();
-            if (messageChannel) messageChannel.unsubscribe();
             if (onlineChannel) onlineChannel.unsubscribe();
 
-            // Typing indicator channel
-            typingChannel = supabase.channel(`typing:${me.id}:${other.id}`)
+            // Typing indicator
+            typingChannel = supabase.channel(`typing:${me.id}:${currentChat.id}`)
                 .on('broadcast', { event: 'typing' }, (payload) => {
                     if (payload.userId !== me.id) {
                         showTyping();
@@ -312,76 +481,26 @@
                 })
                 .subscribe();
 
-            // Message channel
-            messageChannel = supabase.channel(`messages:${me.id}:${other.id}`)
-                .on('postgres_changes', { 
-                    event: 'INSERT', 
-                    schema: 'public', 
-                    table: 'messages',
-                    filter: `or(and(sender_id.eq.${me.id},receiver_id.eq.${other.id}),and(sender_id.eq.${other.id},receiver_id.eq.${me.id}))`
-                }, async (payload) => {
-                    const message = payload.new;
-                    
-                    // If it's a message from the other user, mark as read
-                    if (message.sender_id === other.id && message.receiver_id === me.id) {
-                        await supabase.rpc('mark_messages_read', { other_user_id: other.id });
-                    }
-                    
-                    // If it's our message, mark as delivered
-                    if (message.sender_id === me.id && message.receiver_id === other.id) {
-                        await supabase.rpc('mark_messages_delivered', { other_user_id: other.id });
-                    }
-                    
-                    appendMessage(message);
-                })
-                .on('postgres_changes', { 
-                    event: 'UPDATE', 
-                    schema: 'public', 
-                    table: 'messages',
-                    filter: `or(and(sender_id.eq.${me.id},receiver_id.eq.${other.id}),and(sender_id.eq.${other.id},receiver_id.eq.${me.id}))`
-                }, (payload) => {
-                    // Update message status (read/delivered)
-                    updateMessageStatus(payload.new);
-                })
-                .subscribe();
-
-            // Online status channel
-            onlineChannel = supabase.channel(`online:${other.id}`)
+            // Online status
+            onlineChannel = supabase.channel(`online:${currentChat.id}`)
                 .on('postgres_changes', { 
                     event: 'UPDATE', 
                     schema: 'public', 
                     table: 'profiles',
-                    filter: `id.eq.${other.id}`
+                    filter: `id.eq.${currentChat.id}`
                 }, (payload) => {
                     updateOnlineStatus(payload.new);
                 })
                 .subscribe();
         }
 
-        // Append message to chat
-        function appendMessage(m) {
-            chatEl.insertAdjacentHTML('beforeend', renderBubble(m));
-            chatEl.scrollTop = chatEl.scrollHeight;
-        }
-
-        // Update message status
-        function updateMessageStatus(message) {
-            const messageEl = chatEl.querySelector(`[data-message-id="${message.id}"]`);
-            if (messageEl) {
-                const statusEl = messageEl.querySelector('.message-status');
-                if (statusEl) {
-                    const isRead = message.read_at !== null;
-                    const isDelivered = message.delivered_at !== null;
-                    
-                    if (isRead) {
-                        statusEl.textContent = '✓✓';
-                    } else if (isDelivered) {
-                        statusEl.textContent = '✓✓';
-                    } else {
-                        statusEl.textContent = '✓';
-                    }
-                }
-            }
+        // Show typing indicator
+        function showTyping() {
+            typingIndicator.classList.remove('hidden');
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => {
+                typingIndicator.classList.add('hidden');
+            }, 3000);
         }
 
         // Update online status
@@ -389,107 +508,180 @@
             const isOnline = user.online_status && 
                 new Date(user.last_seen) > new Date(Date.now() - 5 * 60 * 1000);
             
-            // Update header
-            const headerStatus = headerEl.querySelector('.text-xs');
-            if (headerStatus) {
-                headerStatus.textContent = isOnline ? '● online' : '○ offline';
-            }
-            
-            // Update conversation list
-            const conversationBtn = listEl.querySelector(`[data-conversation="${user.id}"]`);
-            if (conversationBtn) {
-                const onlineDot = conversationBtn.querySelector('.absolute');
-                const onlineText = conversationBtn.querySelector('.text-green-600');
-                
-                if (isOnline) {
-                    if (!onlineDot) {
-                        const dot = document.createElement('div');
-                        dot.className = 'absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white';
-                        conversationBtn.querySelector('.relative').appendChild(dot);
-                    }
-                    if (!onlineText) {
-                        const text = document.createElement('span');
-                        text.className = 'text-xs text-green-600';
-                        text.textContent = '● online';
-                        conversationBtn.querySelector('.flex.items-center.gap-2').appendChild(text);
-                    }
-                } else {
-                    if (onlineDot) onlineDot.remove();
-                    if (onlineText) onlineText.remove();
-                }
-            }
-        }
-
-        // Show typing indicator
-        function showTyping() {
-            typingEl.classList.remove('hidden');
-            clearTimeout(typingTimer);
-            typingTimer = setTimeout(() => {
-                typingEl.classList.add('hidden');
-            }, 2000);
+            document.getElementById('chat-user-status').textContent = isOnline ? 'online' : 'offline';
+            document.getElementById('online-indicator').classList.toggle('hidden', !isOnline);
         }
 
         // Send message
         async function sendMessage() {
-            if (!other) return;
+            if (!currentChat) return;
             
-            const text = inputEl.value.trim();
-            const file = fileEl.files?.[0] || null;
-            
-            if (!text && !file) return;
-            
-            let attachment_url = null;
-            if (file) {
-                try {
-                    const path = `dm/${me.id}-${other.id}/${Date.now()}-${file.name}`;
-                    const up = await supabase.storage.from('dm_media').upload(path, file, { upsert: false });
-                    if (!up.error) {
-                        attachment_url = supabase.storage.from('dm_media').getPublicUrl(path).data.publicUrl;
-                    }
-                } catch (e) {
-                    alert('Failed to upload file: ' + e.message);
-                    return;
-                }
-            }
-            
-            const messageData = {
-                sender_id: me.id,
-                receiver_id: other.id,
-                body: text || ''
-            };
-            
-            if (attachment_url) {
-                messageData.attachment_url = attachment_url;
-            }
+            const text = messageText.value.trim();
+            if (!text) return;
             
             try {
-                const { error } = await supabase.from('messages').insert(messageData);
+                const { error } = await supabase.from('messages').insert({
+                    sender_id: me.id,
+                    receiver_id: currentChat.id,
+                    body: text
+                });
+                
                 if (error) throw error;
                 
-                inputEl.value = '';
-                if (fileEl) fileEl.value = '';
+                messageText.value = '';
+                sendBtn.disabled = true;
                 
-                // Mark as delivered immediately
-                await supabase.rpc('mark_messages_delivered', { other_user_id: other.id });
+                // Mark as delivered
+                await supabase.rpc('mark_messages_delivered', { other_user_id: currentChat.id });
+                
+                // Reload conversations to update the list
+                await loadConversations();
             } catch (e) {
                 alert('Failed to send message: ' + e.message);
             }
         }
 
+        // Search users
+        async function searchUsers(query) {
+            if (query.length < 2) {
+                searchResults.innerHTML = '';
+                return;
+            }
+            
+            try {
+                const { data: users } = await supabase
+                    .from('profiles')
+                    .select('id, display_name, online_status, last_seen')
+                    .ilike('display_name', `%${query}%`)
+                    .limit(10);
+                
+                if (!users || users.length === 0) {
+                    searchResults.innerHTML = '<div class="p-4 text-center text-gray-500">No users found</div>';
+                    return;
+                }
+                
+                searchResults.innerHTML = users.map(user => {
+                    const isOnline = user.online_status && 
+                        new Date(user.last_seen) > new Date(Date.now() - 5 * 60 * 1000);
+                    
+                    return `
+                        <div class="flex items-center p-3 hover:bg-gray-50 cursor-pointer" data-user-id="${user.id}">
+                            <div class="relative mr-3">
+                                <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                    <i data-lucide="user" class="w-5 h-5 text-gray-500"></i>
+                                </div>
+                                ${isOnline ? '<div class="online-dot absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white"></div>' : ''}
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-medium text-gray-900">${user.display_name || 'User'}</h4>
+                                <p class="text-sm text-gray-500">${isOnline ? 'online' : 'offline'}</p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                // Add click listeners
+                Array.from(searchResults.querySelectorAll('[data-user-id]')).forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const userId = btn.getAttribute('data-user-id');
+                        startNewConversation(userId);
+                    });
+                });
+            } catch (e) {
+                console.error('Failed to search users:', e);
+            }
+        }
+
+        // Start new conversation
+        async function startNewConversation(userId) {
+            try {
+                const { data: user } = await supabase
+                    .from('profiles')
+                    .select('id, display_name, online_status, last_seen')
+                    .eq('id', userId)
+                    .single();
+
+                if (!user) return;
+
+                // Add to conversations if not exists
+                if (!conversations.has(userId)) {
+                    conversations.set(userId, {
+                        lastMessage: null,
+                        otherUser: user,
+                        unreadCount: 0
+                    });
+                }
+
+                // Hide search
+                searchSection.classList.add('hidden');
+                userSearch.value = '';
+                searchResults.innerHTML = '';
+
+                // Open conversation
+                await openConversation(userId);
+            } catch (e) {
+                console.error('Failed to start conversation:', e);
+            }
+        }
+
+        // Update message badge
+        function updateMessageBadge() {
+            unreadCount = Array.from(conversations.values())
+                .reduce((total, conv) => total + conv.unreadCount, 0);
+            
+            if (unreadCount > 0) {
+                messageBadge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                messageBadge.classList.remove('hidden');
+            } else {
+                messageBadge.classList.add('hidden');
+            }
+        }
+
+        // Utility functions
+        function getTimeAgo(date) {
+            const now = new Date();
+            const messageDate = new Date(date);
+            const diffMs = now - messageDate;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            if (diffMins < 1) return 'now';
+            if (diffMins < 60) return `${diffMins}m`;
+            if (diffHours < 24) return `${diffHours}h`;
+            if (diffDays < 7) return `${diffDays}d`;
+            return messageDate.toLocaleDateString();
+        }
+
+        function escapeHtml(s = '') {
+            return s.replace(/[&<>"']/g, c => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[c]));
+        }
+
         // Setup event listeners
         function setupEventListeners() {
             // Send message
-            document.getElementById('sv-send').addEventListener('click', sendMessage);
-            inputEl.addEventListener('keydown', (e) => {
+            sendBtn.addEventListener('click', sendMessage);
+            messageText.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage();
                 }
             });
 
+            // Enable/disable send button
+            messageText.addEventListener('input', () => {
+                sendBtn.disabled = !messageText.value.trim();
+            });
+
             // Typing indicator
-            inputEl.addEventListener('input', () => {
-                if (typingChannel && other) {
+            messageText.addEventListener('input', () => {
+                if (typingChannel && currentChat) {
                     try {
                         typingChannel.send({
                             type: 'broadcast',
@@ -502,80 +694,37 @@
                 }
             });
 
-            // File attachment
-            document.getElementById('sv-attach').addEventListener('click', () => fileEl.click());
-            document.getElementById('sv-emoji').addEventListener('click', () => {
-                inputEl.value += '😊';
-                inputEl.focus();
+            // New message button
+            newMessageBtn.addEventListener('click', () => {
+                searchSection.classList.toggle('hidden');
+                userSearch.focus();
             });
 
-            // Search users
-            searchEl.addEventListener('input', async (e) => {
-                const q = (e.target.value || '').trim();
-                
-                if (q.length < 2) {
-                    resultsEl.classList.add('hidden');
-                    resultsEl.innerHTML = '';
-                    return;
-                }
-                
-                try {
-                    const { data: users } = await supabase
-                        .from('profiles')
-                        .select('id, display_name, online_status, last_seen')
-                        .ilike('display_name', `%${q}%`)
-                        .limit(8);
-                    
-                    if (!users || users.length === 0) {
-                        resultsEl.classList.add('hidden');
-                        resultsEl.innerHTML = '';
-                        return;
-                    }
-                    
-                    resultsEl.classList.remove('hidden');
-                    resultsEl.innerHTML = users.map(u => {
-                        const isOnline = u.online_status && 
-                            new Date(u.last_seen) > new Date(Date.now() - 5 * 60 * 1000);
-                        
-                        return `
-                            <div class="flex items-center justify-between hover:bg-gray-50 rounded-lg px-2 py-1">
-                                <div class="flex items-center gap-2 min-w-0">
-                                    <div class="relative">
-                                        <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                                            <span class="text-gray-500 text-sm">👤</span>
-                                        </div>
-                                        ${isOnline ? '<div class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border border-white"></div>' : ''}
-                                    </div>
-                                    <div class="truncate text-sm font-medium">@${u.display_name || 'User'}</div>
-                                </div>
-                                <button data-msg="${u.id}" class="text-xs px-2 py-1 rounded-full border hover:bg-gray-100">Message</button>
-                            </div>
-                        `;
-                    }).join('');
-                    
-                    // Add click listeners
-                    Array.from(resultsEl.querySelectorAll('[data-msg]')).forEach(btn => {
-                        btn.addEventListener('click', async () => {
-                            const userId = btn.getAttribute('data-msg');
-                            resultsEl.classList.add('hidden');
-                            await openConversation(userId);
-                        });
-                    });
-                } catch (e) {
-                    console.error('Failed to search users:', e);
-                }
+            // Start messaging buttons
+            startMessagingBtn.addEventListener('click', () => {
+                searchSection.classList.remove('hidden');
+                userSearch.focus();
             });
-        }
 
-        // Utility function
-        function escapeHtml(s = '') {
-            return s.replace(/[&<>"']/g, c => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#39;'
-            }[c]));
+            sendMessageBtn.addEventListener('click', () => {
+                searchSection.classList.remove('hidden');
+                userSearch.focus();
+            });
+
+            // User search
+            userSearch.addEventListener('input', (e) => {
+                searchUsers(e.target.value);
+            });
+
+            // Emoji and attach buttons
+            document.getElementById('emoji-btn').addEventListener('click', () => {
+                messageText.value += '😊';
+                messageText.focus();
+            });
+
+            document.getElementById('attach-btn').addEventListener('click', () => {
+                document.getElementById('file-input').click();
+            });
         }
 
         // Cleanup on page unload
