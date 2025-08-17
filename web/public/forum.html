@@ -78,14 +78,14 @@
 
     <script src="js/config.js"></script>
     <script type="module">
-        import { mountForum } from './js/forum.js';
+        import { mountPrivacyAwareForum } from './js/forumPrivacy.js';
         import { mountSosButton } from './js/sos.js';
         import { mountAuthUiHooks } from './js/auth.js';
         import { replaceNativeAlerts } from './js/ui.js';
         mountAuthUiHooks();
         mountSosButton('#sosBtn');
         window.lucide && window.lucide.createIcons();
-        mountForum();
+        mountPrivacyAwareForum();
         replaceNativeAlerts();
     </script>
 </body>

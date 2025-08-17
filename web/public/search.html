@@ -52,6 +52,7 @@
     <script type="module">
         import { initSupabase, supabase } from './js/supabase.js';
         import { networkMonitor } from './js/ui.js';
+        import { privacyAwareSearch, getPreviewStats, getPreviewMessage } from './js/privacySearch.js';
         
         initSupabase();
         
@@ -129,115 +130,60 @@
             // Show loading state
             mixed.innerHTML = '<div class="text-gray-600 text-center py-4">🔍 Searching...</div>';
             
-            const like = `%${text}%`;
-            
             try {
-                // Search queries - improved to be more comprehensive with retry logic
-                const searchPromises = [
-                    // Exact username matches (highest priority)
-                    retryRequest(() => supabase.from('profiles').select('username,display_name,profile_pic').eq('username', text).limit(5)),
-                    // Partial username matches
-                    retryRequest(() => supabase.from('profiles').select('username,display_name,profile_pic').ilike('username', like).limit(15)),
-                    // Posts that match in title OR body (combined search)
-                    retryRequest(() => supabase.from('posts').select('id,title,body,created_at,upvotes').or(`title.ilike.${like},body.ilike.${like}`).order('created_at',{ascending:false}).limit(30))
-                ];
+                // Use privacy-aware search
+                const searchResult = await privacyAwareSearch(text);
                 
-                const [usersExact, usersPartial, postsSearch] = await Promise.allSettled(searchPromises);
-                
-                let results = [];
-                const now = Date.now();
-                
-                function timeBoost(ts){ 
-                    if(!fRecent.checked) return 0; 
-                    const ageH = (now - new Date(ts).getTime())/(1000*60*60); 
-                    return Math.max(0, 24 - ageH) * 0.5; 
+                if (searchResult.error) {
+                    mixed.innerHTML = `<div class="text-red-600 text-center py-4">Search failed: ${searchResult.error}</div>`;
+                    return;
                 }
                 
-                function trendBoost(up){ 
-                    return fTrending.checked ? Math.min(5, (up||0)/5) : 0; 
-                }
+                const { results, isAuthenticated, hasPreview } = searchResult;
                 
-                // Check if any requests failed
-                const failedRequests = [usersExact, usersPartial, postsSearch].filter(req => req.status === 'rejected');
-                if (failedRequests.length > 0) {
-                    console.warn('Some search requests failed:', failedRequests);
-                }
-                
-                // Add user results
-                if (fUsers.checked){
-                    // Exact username matches get highest score
-                    if (usersExact.status === 'fulfilled' && usersExact.value.data) {
-                        usersExact.value.data.forEach(u=>results.push({
-                            type:'user', 
-                            key:u.username, 
-                            score:100, 
-                            item:u
-                        }));
-                    }
-                    
-                    // Partial username matches
-                    if (usersPartial.status === 'fulfilled' && usersPartial.value.data) {
-                        usersPartial.value.data.forEach(u=>{
-                            // Skip if already added as exact match
-                            if (!results.find(r => r.type === 'user' && r.key === u.username)) {
-                                results.push({
-                                    type:'user', 
-                                    key:u.username, 
-                                    score:70, 
-                                    item:u
-                                });
-                            }
-                        });
-                    }
-                }
-                
-                // Add post results
-                if (fPosts.checked){
-                    if (postsSearch.status === 'fulfilled' && postsSearch.value.data) {
-                        postsSearch.value.data.forEach(p=>{
-                            let score = 50; // Base score for posts
-                            
-                            // Boost if title matches (title matches are more important)
-                            if (p.title && p.title.toLowerCase().includes(text.toLowerCase())) {
-                                score += 20;
-                            }
-                            
-                            // Boost if body matches
-                            if (p.body && p.body.toLowerCase().includes(text.toLowerCase())) {
-                                score += 10;
-                            }
-                            
-                            // Add time and trend boosts
-                            score += timeBoost(p.created_at) + trendBoost(p.upvotes);
-                            
-                            results.push({
-                                type:'post', 
-                                key:p.id, 
-                                score:score, 
-                                item:p
-                            });
-                        });
-                    }
-                }
-                
-                // Sort by score (highest first), then by recency for same scores
-                const ranked = results.sort((a,b)=>{
-                    if (b.score !== a.score) return b.score - a.score;
-                    // If scores are equal, sort by recency
-                    if (a.type === 'post' && b.type === 'post') {
-                        return new Date(b.item.created_at) - new Date(a.item.created_at);
-                    }
-                    // Users come before posts if scores are equal
-                    if (a.type === 'user' && b.type === 'post') return -1;
-                    if (a.type === 'post' && b.type === 'user') return 1;
-                    return 0;
-                }).slice(0,30);
-                
-                if (ranked.length === 0) {
+                if (results.length === 0) {
                     mixed.innerHTML = '<div class="text-gray-500 text-center py-4">No results found</div>';
-                } else {
-                    mixed.innerHTML = ranked.map(r=> r.type==='user' ? renderUser(r.item) : renderPost(r.item)).join('');
+                    return;
                 }
+                
+                // Render results
+                let html = '';
+                
+                // Add preview banner for anonymous users
+                if (hasPreview) {
+                    const stats = await getPreviewStats();
+                    const previewMsg = getPreviewMessage(stats);
+                    
+                    html += `
+                        <div class="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-xl p-4 mb-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="font-semibold text-orange-800">${previewMsg.title}</h3>
+                                    <p class="text-sm text-orange-700 mt-1">${previewMsg.message}</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <a href="login.html" class="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors">
+                                        ${previewMsg.cta}
+                                    </a>
+                                    <a href="signup.html" class="px-4 py-2 border border-orange-600 text-orange-600 rounded-lg text-sm font-medium hover:bg-orange-50 transition-colors">
+                                        Sign Up
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Render search results
+                results.forEach(result => {
+                    if (result.type === 'profile') {
+                        html += renderUser(result.data, result.isPreview);
+                    } else if (result.type === 'post') {
+                        html += renderPost(result.data, result.isPreview);
+                    }
+                });
+                
+                mixed.innerHTML = html;
                 
             } catch (error) {
                 console.error('Search error:', error);
@@ -253,40 +199,85 @@
                 mixed.innerHTML = `<div class="text-red-600 text-center py-4">${errorMessage}</div>`;
             }
         }
-        function renderUser(u){
-            return `<div class="flex items-center justify-between px-3 py-2 border rounded-xl hover:bg-gray-50 transition-colors">
-                <div class="flex items-center gap-3 min-w-0">
-                    <img src="${u.profile_pic||'/avatar.png'}" class="w-10 h-10 rounded-full"/>
-                    <div class="min-w-0">
-                        <div class="flex items-center gap-2">
-                            <a href="user.html?u=${encodeURIComponent(u.username)}" class="font-medium text-gray-800">@${u.username}</a>
-                            <span class="text-xs text-gray-500 bg-blue-100 px-2 py-1 rounded">User</span>
+        
+        function renderUser(u, isPreview = false){
+            const previewClass = isPreview ? 'opacity-75' : '';
+            const previewOverlay = isPreview ? `
+                <div class="absolute inset-0 bg-gradient-to-t from-white/80 to-transparent rounded-xl pointer-events-none"></div>
+            ` : '';
+            
+            return `
+                <div class="relative ${previewClass}">
+                    ${previewOverlay}
+                    <div class="flex items-center justify-between px-3 py-2 border rounded-xl hover:bg-gray-50 transition-colors">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                <span class="text-gray-500 text-lg">👤</span>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <a href="user.html?u=${encodeURIComponent(u.id)}" class="font-medium text-gray-800">@${u.display_name || 'User'}</a>
+                                    <span class="text-xs text-gray-500 bg-blue-100 px-2 py-1 rounded">User</span>
+                                    ${isPreview ? '<span class="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded">Preview</span>' : ''}
+                                </div>
+                                <div class="text-xs text-gray-500 truncate">${u.display_name || ''}</div>
+                                ${u.email && !isPreview ? `<div class="text-xs text-gray-600 mt-1">${u.email}</div>` : ''}
+                            </div>
                         </div>
-                        <div class="text-xs text-gray-500 truncate">${u.display_name||''}</div>
+                        <div class="flex gap-2">
+                            ${isPreview ? 
+                                `<a href="login.html" class="text-xs px-3 py-1 rounded-full border border-orange-300 text-orange-600 hover:bg-orange-50 transition-colors">Login to Message</a>` :
+                                `<a class="text-xs px-3 py-1 rounded-full border border-gray-300 hover:bg-gray-100 transition-colors" href="messages.html?to=${encodeURIComponent(u.id)}">Message</a>`
+                            }
+                        </div>
                     </div>
                 </div>
-                <a class="text-xs px-3 py-1 rounded-full border border-gray-300 hover:bg-gray-100 transition-colors" href="messages.html?to=${encodeURIComponent(u.username)}">Message</a>
-            </div>`;
+            `;
         }
-        function renderPost(p){
-            const excerpt = (p.body||'').replace(/\s+/g,' ').slice(0,150);
+        
+        function renderPost(p, isPreview = false){
+            const previewClass = isPreview ? 'opacity-75' : '';
+            const previewOverlay = isPreview ? `
+                <div class="absolute inset-0 bg-gradient-to-t from-white/80 to-transparent rounded-xl pointer-events-none"></div>
+            ` : '';
+            
+            const excerpt = (p.body||'').replace(/\s+/g,' ').slice(0, isPreview ? 60 : 150);
             const t = new Date(p.created_at).toLocaleString();
             const upvotes = p.upvotes || 0;
-            return `<a class="block p-3 border rounded-xl hover:bg-gray-50 transition-colors" href="thread.html?id=${p.id}">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">Post</div>
-                    <div class="text-xs text-gray-500">${t}</div>
+            
+            return `
+                <div class="relative ${previewClass}">
+                    ${previewOverlay}
+                    <a class="block p-3 border rounded-xl hover:bg-gray-50 transition-colors" href="${isPreview ? 'login.html' : `thread.html?id=${p.id}`}">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex gap-2">
+                                <div class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">Post</div>
+                                ${isPreview ? '<div class="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded">Preview</div>' : ''}
+                            </div>
+                            <div class="text-xs text-gray-500">${t}</div>
+                        </div>
+                        <div class="font-semibold text-gray-800 mb-1">${p.title?escapeHtml(p.title):'Post'}</div>
+                        <div class="text-sm text-gray-700 mb-2">${escapeHtml(excerpt)}${excerpt.length === (isPreview ? 60 : 150) ? '…' : ''}</div>
+                        <div class="flex items-center text-xs text-gray-500">
+                            ${!isPreview ? `<span class="mr-3">👍 ${upvotes}</span>` : ''}
+                            <span>📝 Forum</span>
+                            ${isPreview ? '<span class="ml-auto text-orange-600">Login to see full post</span>' : ''}
+                        </div>
+                    </a>
                 </div>
-                <div class="font-semibold text-gray-800 mb-1">${p.title?escapeHtml(p.title):'Post'}</div>
-                <div class="text-sm text-gray-700 mb-2">${escapeHtml(excerpt)}${excerpt.length===150?'…':''}</div>
-                <div class="flex items-center text-xs text-gray-500">
-                    <span class="mr-3">👍 ${upvotes}</span>
-                    <span>📝 Forum</span>
-                </div>
-            </a>`;
+            `;
         }
+        
         function escapeHtml(s=''){ return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
-        const qp = new URLSearchParams(location.search); if(qp.get('q')){ q.value = qp.get('q'); run(); }
+        
+        // Initialize search if query parameter exists
+        const qp = new URLSearchParams(location.search); 
+        if(qp.get('q')){ 
+            q.value = qp.get('q'); 
+            run(); 
+        }
+        
+        // Add filter change listeners
         [fUsers,fPosts,fRecent,fTrending].forEach(x=>x.addEventListener('change', run));
     </script>
 </body>
