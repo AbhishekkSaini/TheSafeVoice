@@ -58,51 +58,126 @@
             const text = (q.value||'').trim();
             if(!text){ mixed.innerHTML=''; return; }
             const like = `%${text}%`;
-            const [usersEq, usersIlike, postsTitle, postsBody, postsRecent] = await Promise.all([
+            
+            // Search queries - improved to be more comprehensive
+            const [usersExact, usersPartial, postsSearch] = await Promise.all([
+                // Exact username matches (highest priority)
                 supabase.from('profiles').select('username,display_name,profile_pic').eq('username', text).limit(5),
-                supabase.from('profiles').select('username,display_name,profile_pic').ilike('username', like).limit(10),
-                supabase.from('posts').select('id,title,body,created_at,upvotes').ilike('title', like).limit(20),
-                supabase.from('posts').select('id,title,body,created_at,upvotes').ilike('body', like).limit(20),
-                supabase.from('posts').select('id,title,body,created_at,upvotes').order('created_at',{ascending:false}).limit(10)
+                // Partial username matches
+                supabase.from('profiles').select('username,display_name,profile_pic').ilike('username', like).limit(15),
+                // Posts that match in title OR body (combined search)
+                supabase.from('posts').select('id,title,body,created_at,upvotes').or(`title.ilike.${like},body.ilike.${like}`).order('created_at',{ascending:false}).limit(30)
             ]);
+            
             let results = [];
             const now = Date.now();
-            function timeBoost(ts){ if(!fRecent.checked) return 0; const ageH = (now - new Date(ts).getTime())/(1000*60*60); return Math.max(0, 24 - ageH) * 0.5; }
-            function trendBoost(up){ return fTrending.checked ? Math.min(5, (up||0)/5) : 0; }
+            
+            function timeBoost(ts){ 
+                if(!fRecent.checked) return 0; 
+                const ageH = (now - new Date(ts).getTime())/(1000*60*60); 
+                return Math.max(0, 24 - ageH) * 0.5; 
+            }
+            
+            function trendBoost(up){ 
+                return fTrending.checked ? Math.min(5, (up||0)/5) : 0; 
+            }
+            
+            // Add user results
             if (fUsers.checked){
-                (usersEq.data||[]).forEach(u=>results.push({type:'user', key:u.username, score:100, item:u}));
-                (usersIlike.data||[]).forEach(u=>results.push({type:'user', key:u.username, score:70, item:u}));
+                // Exact username matches get highest score
+                (usersExact.data||[]).forEach(u=>results.push({
+                    type:'user', 
+                    key:u.username, 
+                    score:100, 
+                    item:u
+                }));
+                
+                // Partial username matches
+                (usersPartial.data||[]).forEach(u=>{
+                    // Skip if already added as exact match
+                    if (!results.find(r => r.type === 'user' && r.key === u.username)) {
+                        results.push({
+                            type:'user', 
+                            key:u.username, 
+                            score:70, 
+                            item:u
+                        });
+                    }
+                });
             }
+            
+            // Add post results
             if (fPosts.checked){
-                (postsTitle.data||[]).forEach(p=>results.push({type:'post', key:p.id, score:60 + timeBoost(p.created_at) + trendBoost(p.upvotes), item:p}));
-                (postsBody.data||[]).forEach(p=>results.push({type:'post', key:p.id, score:40 + timeBoost(p.created_at) + trendBoost(p.upvotes), item:p}));
-                (postsRecent.data||[]).forEach(p=>results.push({type:'post', key:p.id, score:20 + timeBoost(p.created_at) + trendBoost(p.upvotes), item:p}));
+                (postsSearch.data||[]).forEach(p=>{
+                    let score = 50; // Base score for posts
+                    
+                    // Boost if title matches (title matches are more important)
+                    if (p.title && p.title.toLowerCase().includes(text.toLowerCase())) {
+                        score += 20;
+                    }
+                    
+                    // Boost if body matches
+                    if (p.body && p.body.toLowerCase().includes(text.toLowerCase())) {
+                        score += 10;
+                    }
+                    
+                    // Add time and trend boosts
+                    score += timeBoost(p.created_at) + trendBoost(p.upvotes);
+                    
+                    results.push({
+                        type:'post', 
+                        key:p.id, 
+                        score:score, 
+                        item:p
+                    });
+                });
             }
-            // dedupe by key keeping highest score
-            const best = new Map();
-            for (const r of results){ const prev = best.get(r.key); if (!prev || r.score > prev.score) best.set(r.key, r); }
-            const ranked = Array.from(best.values()).sort((a,b)=>b.score - a.score).slice(0,30);
+            
+            // Sort by score (highest first), then by recency for same scores
+            const ranked = results.sort((a,b)=>{
+                if (b.score !== a.score) return b.score - a.score;
+                // If scores are equal, sort by recency
+                if (a.type === 'post' && b.type === 'post') {
+                    return new Date(b.item.created_at) - new Date(a.item.created_at);
+                }
+                // Users come before posts if scores are equal
+                if (a.type === 'user' && b.type === 'post') return -1;
+                if (a.type === 'post' && b.type === 'user') return 1;
+                return 0;
+            }).slice(0,30);
+            
             mixed.innerHTML = ranked.map(r=> r.type==='user' ? renderUser(r.item) : renderPost(r.item)).join('') || '<div class="text-gray-500">No results</div>';
         }
         function renderUser(u){
-            return `<div class="flex items-center justify-between px-3 py-2 border rounded-xl">
+            return `<div class="flex items-center justify-between px-3 py-2 border rounded-xl hover:bg-gray-50 transition-colors">
                 <div class="flex items-center gap-3 min-w-0">
                     <img src="${u.profile_pic||'/avatar.png'}" class="w-10 h-10 rounded-full"/>
                     <div class="min-w-0">
-                        <a href="user.html?u=${encodeURIComponent(u.username)}" class="font-medium truncate">@${u.username}</a>
+                        <div class="flex items-center gap-2">
+                            <a href="user.html?u=${encodeURIComponent(u.username)}" class="font-medium text-gray-800">@${u.username}</a>
+                            <span class="text-xs text-gray-500 bg-blue-100 px-2 py-1 rounded">User</span>
+                        </div>
                         <div class="text-xs text-gray-500 truncate">${u.display_name||''}</div>
                     </div>
                 </div>
-                <a class="text-xs px-2 py-1 rounded-full border" href="messages.html?to=${encodeURIComponent(u.username)}">Message</a>
+                <a class="text-xs px-3 py-1 rounded-full border border-gray-300 hover:bg-gray-100 transition-colors" href="messages.html?to=${encodeURIComponent(u.username)}">Message</a>
             </div>`;
         }
         function renderPost(p){
-            const excerpt = (p.body||'').replace(/\s+/g,' ').slice(0,180);
+            const excerpt = (p.body||'').replace(/\s+/g,' ').slice(0,150);
             const t = new Date(p.created_at).toLocaleString();
-            return `<a class="block p-3 border rounded-xl hover:bg-gray-50" href="thread.html?id=${p.id}">
-                <div class="text-sm text-gray-500">${t}</div>
-                <div class="font-semibold">${p.title?escapeHtml(p.title):'Post'}</div>
-                <div class="text-sm text-gray-700">${escapeHtml(excerpt)}${excerpt.length===180?'…':''}</div>
+            const upvotes = p.upvotes || 0;
+            return `<a class="block p-3 border rounded-xl hover:bg-gray-50 transition-colors" href="thread.html?id=${p.id}">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">Post</div>
+                    <div class="text-xs text-gray-500">${t}</div>
+                </div>
+                <div class="font-semibold text-gray-800 mb-1">${p.title?escapeHtml(p.title):'Post'}</div>
+                <div class="text-sm text-gray-700 mb-2">${escapeHtml(excerpt)}${excerpt.length===150?'…':''}</div>
+                <div class="flex items-center text-xs text-gray-500">
+                    <span class="mr-3">👍 ${upvotes}</span>
+                    <span>📝 Forum</span>
+                </div>
             </a>`;
         }
         function escapeHtml(s=''){ return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
