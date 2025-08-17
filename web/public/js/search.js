@@ -38,6 +38,12 @@ export function mountUserSearch(inputSelector, resultsSelector){
   const debounced = debounce(run, 250);
   input.addEventListener('input', debounced);
   input.addEventListener('focus', run);
+  input.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter'){
+      const q = (input.value||'').trim();
+      if (q) window.location.href = `search.html?q=${encodeURIComponent(q)}`;
+    }
+  });
 
   document.addEventListener('click', (e)=>{
     if (!results.contains(e.target) && e.target !== input){ results.classList.add('hidden'); }

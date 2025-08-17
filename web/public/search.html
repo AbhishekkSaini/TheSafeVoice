@@ -25,15 +25,20 @@
                 <button id="go" class="px-4 py-2 border rounded">Search</button>
             </div>
         </div>
-        <div class="grid md:grid-cols-2 gap-6 mt-6">
-            <section class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                <h2 class="font-semibold mb-3">Users</h2>
-                <div id="users" class="space-y-2 text-sm"></div>
+        <div class="grid lg:grid-cols-3 gap-6 mt-6">
+            <section class="lg:col-span-2 bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <h2 class="font-semibold mb-3">Top results</h2>
+                <div id="mixed" class="space-y-3 text-sm"></div>
             </section>
-            <section class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                <h2 class="font-semibold mb-3">Posts</h2>
-                <div id="posts" class="space-y-2 text-sm"></div>
-            </section>
+            <aside class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <h2 class="font-semibold mb-3">Filters</h2>
+                <div class="space-y-2 text-sm text-gray-600">
+                    <label class="flex items-center gap-2"><input type="checkbox" id="f-users" checked/> Users</label>
+                    <label class="flex items-center gap-2"><input type="checkbox" id="f-posts" checked/> Posts</label>
+                    <label class="flex items-center gap-2"><input type="checkbox" id="f-recent" checked/> Boost recent</label>
+                    <label class="flex items-center gap-2"><input type="checkbox" id="f-trending"/> Boost trending</label>
+                </div>
+            </aside>
         </div>
     </main>
 
@@ -42,25 +47,68 @@
         import { initSupabase, supabase } from './js/supabase.js';
         initSupabase();
         const q = document.getElementById('q');
-        const users = document.getElementById('users');
-        const posts = document.getElementById('posts');
+        const mixed = document.getElementById('mixed');
+        const fUsers = document.getElementById('f-users');
+        const fPosts = document.getElementById('f-posts');
+        const fRecent = document.getElementById('f-recent');
+        const fTrending = document.getElementById('f-trending');
         document.getElementById('go').addEventListener('click', run);
         q.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ run(); }});
         async function run(){
             const text = (q.value||'').trim();
-            if(!text){ users.innerHTML=''; posts.innerHTML=''; return; }
-            const [uRes, pRes] = await Promise.all([
-                supabase.from('profiles').select('username,profile_pic').ilike('username', `%${text}%`).limit(10),
-                supabase.from('posts').select('id,title').ilike('title', `%${text}%`).limit(10)
+            if(!text){ mixed.innerHTML=''; return; }
+            const like = `%${text}%`;
+            const prefix = text + '%';
+            const [usersEq, usersIlike, postsTitle, postsBody, postsRecent] = await Promise.all([
+                supabase.from('profiles').select('username,display_name,profile_pic').eq('username', text).limit(5),
+                supabase.from('profiles').select('username,display_name,profile_pic').ilike('username', prefix).limit(10),
+                supabase.from('posts').select('id,title,body,created_at,upvotes').ilike('title', like).limit(20),
+                supabase.from('posts').select('id,title,body,created_at,upvotes').ilike('body', like).limit(20),
+                supabase.from('posts').select('id,title,body,created_at,upvotes').order('created_at',{ascending:false}).limit(10)
             ]);
-            const u = uRes.data || []; const p = pRes.data || [];
-            users.innerHTML = u.map(x=>`<div class="flex items-center justify-between px-2 py-1 rounded hover:bg-gray-50">
-                <div class="flex items-center gap-2"><img src="${x.profile_pic||'/avatar.png'}" class="w-8 h-8 rounded-full"/><a class="font-medium" href="user.html?u=${encodeURIComponent(x.username)}">@${x.username}</a></div>
-                <a class="text-xs px-2 py-1 rounded-full border" href="messages.html?to=${encodeURIComponent(x.username)}">Message</a>
-            </div>`).join('') || '<div class="text-gray-500">No users</div>';
-            posts.innerHTML = p.map(x=>`<a class="block hover:underline" href="thread.html?id=${x.id}">${x.title}</a>`).join('') || '<div class="text-gray-500">No posts</div>';
+            let results = [];
+            const now = Date.now();
+            function timeBoost(ts){ if(!fRecent.checked) return 0; const ageH = (now - new Date(ts).getTime())/(1000*60*60); return Math.max(0, 24 - ageH) * 0.5; }
+            function trendBoost(up){ return fTrending.checked ? Math.min(5, (up||0)/5) : 0; }
+            if (fUsers.checked){
+                (usersEq.data||[]).forEach(u=>results.push({type:'user', key:u.username, score:100, item:u}));
+                (usersIlike.data||[]).forEach(u=>results.push({type:'user', key:u.username, score:70, item:u}));
+            }
+            if (fPosts.checked){
+                (postsTitle.data||[]).forEach(p=>results.push({type:'post', key:p.id, score:60 + timeBoost(p.created_at) + trendBoost(p.upvotes), item:p}));
+                (postsBody.data||[]).forEach(p=>results.push({type:'post', key:p.id, score:40 + timeBoost(p.created_at) + trendBoost(p.upvotes), item:p}));
+                (postsRecent.data||[]).forEach(p=>results.push({type:'post', key:p.id, score:20 + timeBoost(p.created_at) + trendBoost(p.upvotes), item:p}));
+            }
+            // dedupe by key keeping highest score
+            const best = new Map();
+            for (const r of results){ const prev = best.get(r.key); if (!prev || r.score > prev.score) best.set(r.key, r); }
+            const ranked = Array.from(best.values()).sort((a,b)=>b.score - a.score).slice(0,30);
+            mixed.innerHTML = ranked.map(r=> r.type==='user' ? renderUser(r.item) : renderPost(r.item)).join('') || '<div class="text-gray-500">No results</div>';
         }
+        function renderUser(u){
+            return `<div class="flex items-center justify-between px-3 py-2 border rounded-xl">
+                <div class="flex items-center gap-3 min-w-0">
+                    <img src="${u.profile_pic||'/avatar.png'}" class="w-10 h-10 rounded-full"/>
+                    <div class="min-w-0">
+                        <a href="user.html?u=${encodeURIComponent(u.username)}" class="font-medium truncate">@${u.username}</a>
+                        <div class="text-xs text-gray-500 truncate">${u.display_name||''}</div>
+                    </div>
+                </div>
+                <a class="text-xs px-2 py-1 rounded-full border" href="messages.html?to=${encodeURIComponent(u.username)}">Message</a>
+            </div>`;
+        }
+        function renderPost(p){
+            const excerpt = (p.body||'').replace(/\s+/g,' ').slice(0,180);
+            const t = new Date(p.created_at).toLocaleString();
+            return `<a class="block p-3 border rounded-xl hover:bg-gray-50" href="thread.html?id=${p.id}">
+                <div class="text-sm text-gray-500">${t}</div>
+                <div class="font-semibold">${p.title?escapeHtml(p.title):'Post'}</div>
+                <div class="text-sm text-gray-700">${escapeHtml(excerpt)}${excerpt.length===180?'…':''}</div>
+            </a>`;
+        }
+        function escapeHtml(s=''){ return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
         const qp = new URLSearchParams(location.search); if(qp.get('q')){ q.value = qp.get('q'); run(); }
+        [fUsers,fPosts,fRecent,fTrending].forEach(x=>x.addEventListener('change', run));
     </script>
 </body>
 </html>
