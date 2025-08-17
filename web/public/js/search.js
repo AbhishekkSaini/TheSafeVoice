@@ -59,10 +59,10 @@ export function mountUserSearch(inputSelector, resultsSelector){
     try {
       // Search both users and posts with retry logic and proper error handling
       const searchPromises = [
-        // Exact username matches (highest priority)
-        retryRequest(() => supabase.from('profiles').select('username,display_name,profile_pic').eq('username', q).limit(3)),
-        // Partial username matches
-        retryRequest(() => supabase.from('profiles').select('username,display_name,profile_pic').ilike('username', `%${q}%`).limit(5)),
+        // Exact display_name matches (highest priority)
+        retryRequest(() => supabase.from('profiles').select('id,display_name,email').eq('display_name', q).limit(3)),
+        // Partial display_name matches
+        retryRequest(() => supabase.from('profiles').select('id,display_name,email').ilike('display_name', `%${q}%`).limit(5)),
         // Posts that match in title OR body - fixed .or() syntax
         retryRequest(() => supabase.from('posts').select('id,title,body,created_at,upvotes').or(`title.ilike.%${q}%,body.ilike.%${q}%`).order('created_at',{ascending:false}).limit(5))
       ];
@@ -78,7 +78,7 @@ export function mountUserSearch(inputSelector, resultsSelector){
       if (usersExact.status === 'fulfilled' && usersExact.value.data && usersExact.value.data.length > 0) {
         usersExact.value.data.forEach(u=>searchResults.push({
           type:'user', 
-          key:u.username, 
+          key:u.id, 
           score:100, 
           item:u
         }));
@@ -86,10 +86,10 @@ export function mountUserSearch(inputSelector, resultsSelector){
       
       if (usersPartial.status === 'fulfilled' && usersPartial.value.data && usersPartial.value.data.length > 0) {
         usersPartial.value.data.forEach(u=>{
-          if (!searchResults.find(r => r.type === 'user' && r.key === u.username)) {
+          if (!searchResults.find(r => r.type === 'user' && r.key === u.id)) {
             searchResults.push({
               type:'user', 
-              key:u.username, 
+              key:u.id, 
               score:70, 
               item:u
             });
@@ -101,9 +101,12 @@ export function mountUserSearch(inputSelector, resultsSelector){
       if (postsSearch.status === 'fulfilled' && postsSearch.value.data && postsSearch.value.data.length > 0) {
         postsSearch.value.data.forEach(p=>{
           let score = 50;
-          if (p.title && p.title.toLowerCase().includes(q.toLowerCase())) score += 20;
-          if (p.body && p.body.toLowerCase().includes(q.toLowerCase())) score += 10;
-          
+          if (p.title && p.title.toLowerCase().includes(q.toLowerCase())) {
+            score += 20;
+          }
+          if (p.body && p.body.toLowerCase().includes(q.toLowerCase())) {
+            score += 10;
+          }
           searchResults.push({
             type:'post', 
             key:p.id, 
@@ -113,29 +116,17 @@ export function mountUserSearch(inputSelector, resultsSelector){
         });
       }
       
-      // Check if any requests failed
-      const failedRequests = [usersExact, usersPartial, postsSearch].filter(req => req.status === 'rejected');
-      if (failedRequests.length > 0) {
-        console.warn('Some search requests failed:', failedRequests);
-      }
+      // Sort by score and render
+      searchResults.sort((a,b)=>b.score-a.score);
       
-      // Sort by score and limit results
-      const ranked = searchResults.sort((a,b)=>b.score - a.score).slice(0,8);
-      
-      console.log('Final ranked results:', ranked);
-      
-      if (ranked.length === 0){ 
-        results.classList.remove('hidden');
+      if (searchResults.length === 0) {
         results.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No results found</div>';
-        return; 
+      } else {
+        results.innerHTML = searchResults.map(r=>r.type==='user' ? renderUser(r.item) : renderPost(r.item)).join('');
       }
-      
-      results.innerHTML = ranked.map(r => r.type === 'user' ? renderUser(r.item) : renderPost(r.item)).join('');
-      results.classList.remove('hidden');
       
     } catch (error) {
       console.error('Search error:', error);
-      results.classList.remove('hidden');
       
       // Provide user-friendly error messages
       let errorMessage = 'Search failed. Please try again.';
@@ -148,48 +139,45 @@ export function mountUserSearch(inputSelector, resultsSelector){
       results.innerHTML = `<div class="px-3 py-2 text-red-600 text-sm">${errorMessage}</div>`;
     }
   }
-
+  
   function renderUser(u){
-    return `<div class="flex items-center justify-between px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100">
-      <a href="user.html?u=${encodeURIComponent(u.username)}" class="flex items-center gap-2 min-w-0">
-        <img src="${u.profile_pic||'/avatar.png'}" class="w-8 h-8 rounded-full"/>
-        <div class="min-w-0">
-          <div class="text-sm font-medium truncate">@${u.username}</div>
-          <div class="text-[11px] text-gray-500 truncate">${u.display_name||''}</div>
+    return `<div class="p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+          <span class="text-gray-500 text-sm">👤</span>
         </div>
-      </a>
-      <a href="messages.html?to=${encodeURIComponent(u.username)}" class="text-xs px-2 py-1 rounded-full border">Message</a>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <a href="user.html?u=${encodeURIComponent(u.id)}" class="font-medium text-gray-800 text-sm">@${u.display_name || 'User'}</a>
+          </div>
+          <div class="text-xs text-gray-500 truncate">${u.display_name || ''}</div>
+        </div>
+      </div>
     </div>`;
   }
   
   function renderPost(p){
     const excerpt = (p.body||'').replace(/\s+/g,' ').slice(0,80);
-    return `<a href="thread.html?id=${p.id}" class="block px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100">
-      <div class="flex items-center gap-2 mb-1">
-        <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">Post</span>
-        <span class="text-xs text-gray-500">${new Date(p.created_at).toLocaleDateString()}</span>
-      </div>
-      <div class="text-sm font-medium text-gray-800 mb-1">${escapeHtml(p.title||'Post')}</div>
-      <div class="text-xs text-gray-600">${escapeHtml(excerpt)}${excerpt.length===80?'…':''}</div>
-    </a>`;
+    return `<div class="p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0">
+      <a href="thread.html?id=${p.id}" class="block">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-xs text-gray-500 bg-gray-100 px-1 rounded">Post</span>
+        </div>
+        <div class="font-medium text-gray-800 text-sm mb-1">${escapeHtml(p.title || 'Post')}</div>
+        <div class="text-xs text-gray-600">${escapeHtml(excerpt)}${excerpt.length===80?'…':''}</div>
+      </a>
+    </div>`;
   }
   
-  function escapeHtml(s=''){ 
-    return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); 
-  }
-
-  const debounced = debounce(run, 250);
-  input.addEventListener('input', debounced);
-  input.addEventListener('focus', run);
-  input.addEventListener('keydown', (e)=>{
-    if (e.key === 'Enter'){
-      const q = (input.value||'').trim();
-      if (q) window.location.href = `search.html?q=${encodeURIComponent(q)}`;
+  function escapeHtml(s=''){ return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
+  
+  input.addEventListener('input', debounce(run, 300));
+  
+  // Hide results when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!input.contains(e.target) && !results.contains(e.target)) {
+      results.classList.add('hidden');
     }
-  });
-
-  document.addEventListener('click', (e)=>{
-    if (!results.contains(e.target) && e.target !== input){ results.classList.add('hidden'); }
   });
 }
 

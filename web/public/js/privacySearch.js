@@ -65,7 +65,7 @@ async function fetchPostsPrivacyAware(query, limit = 10) {
 
 /**
  * Fetch profiles with privacy-aware access
- * Anonymous: Basic info only (username, display_name)
+ * Anonymous: Basic info only (display_name)
  * Authenticated: Full profile access
  */
 async function fetchProfilesPrivacyAware(query, limit = 10) {
@@ -75,9 +75,9 @@ async function fetchProfilesPrivacyAware(query, limit = 10) {
     if (isAuth) {
         // Full access for authenticated users
         const [exactMatches, partialMatches] = await Promise.all([
-            supabase.from('profiles').select('id, display_name, phone, email, created_at')
+            supabase.from('profiles').select('id, display_name, email, created_at')
                 .eq('display_name', query).limit(3),
-            supabase.from('profiles').select('id, display_name, phone, email, created_at')
+            supabase.from('profiles').select('id, display_name, email, created_at')
                 .ilike('display_name', like).limit(limit - 3)
         ]);
         
@@ -95,9 +95,9 @@ async function fetchProfilesPrivacyAware(query, limit = 10) {
     } else {
         // Limited preview for anonymous users
         const [exactMatches, partialMatches] = await Promise.all([
-            supabase.from('profiles').select('id, display_name') // No phone, email
+            supabase.from('profiles').select('id, display_name') // No email
                 .eq('display_name', query).limit(2),
-            supabase.from('profiles').select('id, display_name') // No phone, email
+            supabase.from('profiles').select('id, display_name') // No email
                 .ilike('display_name', like).limit(3)
         ]);
         
