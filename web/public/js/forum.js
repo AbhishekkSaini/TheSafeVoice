@@ -19,7 +19,6 @@ export async function mountForum() {
     await renderFeed();
     mountComposer(user);
     mountFilters();
-    mountQuickUserSearch();
 }
 
 function categoryBadge(catKey) {
@@ -62,36 +61,7 @@ function mountFilters() {
     if (qInput) qInput.addEventListener('input', debounce(renderFeed, 250));
 }
 
-function mountQuickUserSearch(){
-    const input = q('#quick-user-search');
-    const panel = q('#quick-user-results');
-    if (!input || !panel) return;
-    panel.classList.add('hidden');
-    const run = debounce(async ()=>{
-        const text = (input.value||'').trim();
-        if (text.length < 2){ panel.innerHTML=''; panel.classList.add('hidden'); return; }
-        const { data } = await supabase.from('profiles').select('username,profile_pic,display_name').ilike('username', `%${text}%`).limit(8);
-        const list = (data||[]);
-        if (list.length === 0){ panel.innerHTML=''; panel.classList.add('hidden'); return; }
-        panel.innerHTML = list.map(u=>`
-            <div class="flex items-center justify-between px-3 py-2 hover:bg-gray-50">
-                <a href="user.html?u=${u.username}" class="flex items-center gap-2 min-w-0">
-                    <img src="${u.profile_pic||'/avatar.png'}" class="w-8 h-8 rounded-full"/>
-                    <div class="min-w-0">
-                        <div class="text-sm font-medium truncate">@${u.username}</div>
-                        <div class="text-[11px] text-gray-500 truncate">${u.display_name||''}</div>
-                    </div>
-                </a>
-                <a href="messages.html?to=${u.username}" class="text-xs px-2 py-1 rounded-full border">Message</a>
-            </div>
-        `).join('');
-        panel.classList.remove('hidden');
-    }, 250);
-    input.addEventListener('input', run);
-    input.addEventListener('focus', run);
-    input.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ const qv=(input.value||'').trim(); if(qv) window.location.href = `search.html?q=${encodeURIComponent(qv)}`; }});
-    document.addEventListener('click', (e)=>{ if(!panel.contains(e.target) && e.target!==input){ panel.classList.add('hidden'); }});
-}
+
 
 function mountComposer(user) {
     const form = q('#post-composer');
