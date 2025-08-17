@@ -66,11 +66,10 @@
                 const uname = document.getElementById('toUsername').value.trim();
                 const body = document.getElementById('body').value.trim();
                 if (!uname || !body) return;
-                const { data: profile, error: pErr } = await supabase.from('profiles').select('id,allow_messages,is_private').eq('username', uname).single();
+                const { data: profile, error: pErr } = await supabase.from('profiles').select('id').eq('username', uname).single();
                 if (pErr) return alert(pErr.message);
                 const receiverId = profile?.id;
                 if (!receiverId) { alert('No user with that username'); return; }
-                if (profile.is_private && !profile.allow_messages) { alert('User does not accept messages'); return; }
                 const { error } = await supabase.from('messages').insert({ sender_id: me.id, receiver_id: receiverId, body });
                 if (error) return alert(error.message);
                 alert('Message sent');
