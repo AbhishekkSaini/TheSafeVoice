@@ -1,23 +1,20 @@
-// Copy this file to `Safevoice/js/config.js` and fill in your keys
-// Do NOT commit real keys to source control.
+// Example configuration file - DO NOT commit real credentials
+// Copy this file to js/config.js and replace with your actual values
 
 window.SAFEVOICE_CONFIG = {
-    // Supabase project URL (e.g., https://xyzcompany.supabase.co)
-    supabaseUrl: "",
-    // Supabase anon public key
-    supabaseAnonKey: "",
-
-    // Optional: Google Maps API key for SOS map preview
-    googleMapsApiKey: "",
-
-    // Optional: Blockchain verification of SOS events
+    // Supabase configuration
+    supabaseUrl: "YOUR_SUPABASE_URL_HERE",
+    supabaseAnonKey: "YOUR_SUPABASE_ANON_KEY_HERE",
+    
+    // Google Maps API (optional)
+    googleMapsApiKey: "YOUR_GOOGLE_MAPS_API_KEY_HERE",
+    
+    // Blockchain configuration (optional)
     blockchain: {
         enabled: false,
-        // RPC URL for the chosen chain (e.g., Sepolia testnet)
-        rpcUrl: "",
+        rpcUrl: "YOUR_BLOCKCHAIN_RPC_URL_HERE",
         chainId: 11155111,
-        // If you deploy a contract to anchor SOS hashes, set it here
-        contractAddress: ""
+        contractAddress: "YOUR_CONTRACT_ADDRESS_HERE"
     }
 };
 

@@ -24,7 +24,7 @@
         <!-- Left: conversation list -->
         <aside class="w-full md:w-80 border-r flex flex-col">
             <div class="p-3 flex items-center gap-2">
-                <input id="sv-search" placeholder="Search" class="w-full border rounded-full px-4 py-2 text-sm outline-none"/>
+                <input id="sv-search" placeholder="Search users to message..." class="w-full border rounded-full px-4 py-2 text-sm outline-none"/>
             </div>
             <div id="sv-search-results" class="px-2 space-y-1 hidden"></div>
             <div id="sv-list" class="flex-1 overflow-y-auto"></div>
@@ -76,10 +76,10 @@
             if (!u) { window.location.href = 'login.html'; return; }
             me = u;
             await loadConversations();
-            // open conversation by query param (?to=username or ?u=username)
+            // open conversation by query param (?to=userId or ?u=userId)
             const qp = new URLSearchParams(location.search);
             const toUser = (qp.get('to') || qp.get('u') || '').trim();
-            if (toUser) { await openConversationByUsername(toUser); }
+            if (toUser) { await openConversation(toUser); }
         })();
 
         async function loadConversations(){
@@ -97,23 +97,25 @@
             });
             const ids = Object.keys(latestByOther);
             if (ids.length === 0) {
-                listEl.innerHTML = '<div class="px-4 py-8 text-sm text-gray-500">No conversations yet.</div>';
+                listEl.innerHTML = '<div class="px-4 py-8 text-sm text-gray-500">No conversations yet. Search for users above to start messaging!</div>';
                 return;
             }
             const { data: users } = await supabase
                 .from('profiles')
-                .select('id,username,profile_pic,online_status')
+                .select('id,display_name,email')
                 .in('id', ids);
             const usersMap = Object.fromEntries((users||[]).map(u => [u.id, u]));
             listEl.innerHTML = ids.map(id => {
-                const u = usersMap[id] || { username: 'member' };
+                const u = usersMap[id] || { display_name: 'User' };
                 const m = latestByOther[id];
                 const time = new Date(m.created_at).toLocaleTimeString();
                 const preview = m.body ? escapeHtml(m.body) : '[attachment]';
                 return `<button data-id="${id}" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
-                    <img src="${u.profile_pic || '/avatar.png'}" class="w-11 h-11 rounded-full"/>
+                    <div class="w-11 h-11 rounded-full bg-gray-200 flex items-center justify-center">
+                        <span class="text-gray-500 text-lg">👤</span>
+                    </div>
                     <div class="flex-1 min-w-0 text-left">
-                        <div class="font-medium truncate">@${u.username}</div>
+                        <div class="font-medium truncate">@${u.display_name || 'User'}</div>
                         <div class="text-xs text-gray-500 truncate">${preview}</div>
                     </div>
                     <div class="text-[11px] text-gray-400">${time}</div>
@@ -125,28 +127,27 @@
         async function openConversation(otherId){
             const { data: p } = await supabase
                 .from('profiles')
-                .select('id,username,profile_pic,bio,online_status')
+                .select('id,display_name,email')
                 .eq('id', otherId)
                 .single();
             other = p;
-            headerEl.innerHTML = `<img src="${other.profile_pic || '/avatar.png'}" class="w-8 h-8 rounded-full"/>
-                <div class="font-semibold">@${other.username}</div>
-                <div class="ml-2 w-2 h-2 rounded-full ${other.online_status ? 'bg-green-500' : 'bg-gray-300'}"></div>`;
+            headerEl.innerHTML = `<div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                <span class="text-gray-500 text-sm">👤</span>
+            </div>
+                <div class="font-semibold">@${other.display_name || 'User'}</div>`;
             profileEl.innerHTML = `<div class="p-6 flex flex-col items-center gap-3">
-                <img src="${other.profile_pic || '/avatar.png'}" class="w-16 h-16 rounded-full"/>
-                <div class="font-semibold">@${other.username}</div>
-                <div class="text-sm text-gray-600 text-center">${escapeHtml(other.bio || '—')}</div>
-                <button id="sv-block" class="mt-2 border rounded px-3 py-1 text-sm">Block</button>
+                <div class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
+                    <span class="text-gray-500 text-xl">👤</span>
+                </div>
+                <div class="font-semibold">@${other.display_name || 'User'}</div>
+                <div class="text-sm text-gray-600 text-center">${escapeHtml(other.email || '—')}</div>
             </div>`;
-            document.getElementById('sv-block').addEventListener('click', blockUser);
             await loadMessages();
             wireRealtime();
         }
 
-        async function openConversationByUsername(username){
-            const { data: p, error } = await supabase.from('profiles').select('id').eq('username', username).limit(1).single();
-            if (error || !p?.id) { return showError('User not found'); }
-            await openConversation(p.id);
+        async function openConversationByUserId(userId){
+            await openConversation(userId);
         }
 
         async function loadMessages(){
@@ -219,6 +220,7 @@
         document.getElementById('sv-send').addEventListener('click', sendMessage);
         inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
         inputEl.addEventListener('input', () => { try { typingCh?.send({ type: 'broadcast', event: 'typing', payload: { userId: me.id } }); } catch {} });
+        
         // Search users globally to start a new chat
         searchEl.addEventListener('input', async (e) => {
             const q = (e.target.value || '').trim();
@@ -228,22 +230,24 @@
                 btn.style.display = name.includes(q.toLowerCase()) ? 'flex' : 'none';
             });
             if (q.length < 2) { resultsEl.classList.add('hidden'); resultsEl.innerHTML=''; return; }
-            const { data: users } = await supabase.from('profiles').select('id,username,profile_pic').ilike('username', q+'%').limit(8);
+            const { data: users } = await supabase.from('profiles').select('id,display_name,email').ilike('display_name', `%${q}%`).limit(8);
             if (!users || users.length === 0) { resultsEl.classList.add('hidden'); resultsEl.innerHTML=''; return; }
             resultsEl.classList.remove('hidden');
             resultsEl.innerHTML = users.map(u => `
                 <div class="flex items-center justify-between hover:bg-gray-50 rounded-lg px-2 py-1">
                     <div class="flex items-center gap-2 min-w-0">
-                        <img src="${u.profile_pic||'/avatar.png'}" class="w-8 h-8 rounded-full"/>
-                        <a href="user.html?u=${encodeURIComponent(u.username)}" class="truncate text-sm font-medium">@${u.username}</a>
+                        <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                            <span class="text-gray-500 text-sm">👤</span>
+                        </div>
+                        <a href="user.html?u=${encodeURIComponent(u.id)}" class="truncate text-sm font-medium">@${u.display_name || 'User'}</a>
                     </div>
-                    <button data-msg="${u.username}" class="text-xs px-2 py-1 rounded-full border">Message</button>
+                    <button data-msg="${u.id}" class="text-xs px-2 py-1 rounded-full border hover:bg-gray-100">Message</button>
                 </div>
             `).join('');
             Array.from(resultsEl.querySelectorAll('button[data-msg]')).forEach(btn => btn.addEventListener('click', async () => {
-                const uname = btn.getAttribute('data-msg');
+                const userId = btn.getAttribute('data-msg');
                 resultsEl.classList.add('hidden');
-                await openConversationByUsername(uname);
+                await openConversationByUserId(userId);
             }));
         });
 
@@ -268,14 +272,7 @@
             if (fileEl) fileEl.value = '';
         }
 
-        async function blockUser(){
-            if (!other) return;
-            const { error } = await supabase.from('user_blocks').insert({ blocker_id: me.id, blocked_id: other.id });
-            if (error) return showError(error.message);
-            showError('User blocked');
-        }
-
-            function escapeHtml(s = '') { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
+        function escapeHtml(s = '') { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
     </script>
 </body>
 </html>
