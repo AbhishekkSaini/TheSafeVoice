@@ -16,7 +16,7 @@ export default function DMPage(){
   },[supabase]);
 
   return (
-    <div className="h-[calc(100vh-56px)] flex">
+    <div className="h-[calc(100vh-56px)] flex bg-white rounded-xl shadow max-w-7xl mx-auto my-4 overflow-hidden border">
       <ConversationList meId={meId} activeOtherId={other?.id||null} onOpen={setOther} />
       <div className="flex-1 flex flex-col">
         <ChatWindow meId={meId} other={other} />

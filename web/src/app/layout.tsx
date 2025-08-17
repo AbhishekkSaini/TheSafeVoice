@@ -12,7 +12,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="min-h-screen bg-gradient-to-br from-slate-50 to-orange-50">
+        <div className="h-14 bg-white/90 border-b backdrop-blur-md flex items-center px-4">
+          <a href="/" className="font-semibold">TheSafeVoice</a>
+          <div className="ml-auto flex items-center gap-4 text-sm">
+            <a href="/dm" className="hover:underline">Messages</a>
+          </div>
+        </div>
+        {children}
+      </body>
     </html>
   );
 }
