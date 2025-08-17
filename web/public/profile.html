@@ -53,9 +53,11 @@
     <script type="module">
         import { initSupabase, supabase, getUser } from './js/supabase.js';
         import { mountSosButton } from './js/sos.js';
+        import { replaceNativeAlerts } from './js/ui.js';
         initSupabase();
         mountSosButton('#sosBtn');
         window.lucide && window.lucide.createIcons();
+        replaceNativeAlerts();
 
         (async () => {
             const user = await getUser();

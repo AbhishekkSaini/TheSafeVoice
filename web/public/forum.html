@@ -93,11 +93,13 @@
         import { mountSosButton } from './js/sos.js';
         import { mountAuthUiHooks } from './js/auth.js';
         import { mountUserSearch } from './js/search.js';
+        import { replaceNativeAlerts } from './js/ui.js';
         mountAuthUiHooks();
         mountSosButton('#sosBtn');
         window.lucide && window.lucide.createIcons();
         mountForum();
         mountUserSearch('#nav-user-search', '#nav-user-results');
+        replaceNativeAlerts();
     </script>
 </body>
 </html>

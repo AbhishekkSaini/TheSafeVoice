@@ -495,6 +495,7 @@
         import { initSupabase, supabase } from './js/supabase.js';
         import { mountAuthUiHooks } from './js/auth.js';
         import { mountUserSearch } from './js/search.js';
+        import { replaceNativeAlerts } from './js/ui.js';
         initSupabase();
         mountSosButton('#sosBtn');
         // Sync nav (Login/Signup vs Logout) with current session
@@ -503,6 +504,7 @@
         window.SafeVoiceSendSOS = async () => { try { await sendSOS(); } catch (e) { alert(e.message || 'SOS failed'); } };
         window.lucide && window.lucide.createIcons();
         mountUserSearch('#nav-user-search', '#nav-user-results');
+        replaceNativeAlerts();
         // Trending + Categories + Quick Help Strip + New Member Hook + (optional) Safety Map
         // Reverted to original simple homepage blocks
         (async () => {

@@ -50,8 +50,9 @@
     <script src="js/config.js"></script>
     <script type="module">
         import { initSupabase, supabase, getUser } from './js/supabase.js';
-        import { showError } from './js/ui.js';
+        import { showError, replaceNativeAlerts } from './js/ui.js';
         initSupabase();
+        replaceNativeAlerts();
 
         const $ = (id) => document.getElementById(id);
         const listEl = $('sv-list');
