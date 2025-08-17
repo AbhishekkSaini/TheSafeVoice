@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Debug - TheSafeVoice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8">Search Debug Console</h1>
+        
+        <div class="bg-white rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Test Search</h2>
+            <div class="flex gap-4 mb-4">
+                <input id="testQuery" placeholder="Enter search term..." class="flex-1 border rounded px-3 py-2" value="test">
+                <button onclick="testSearch()" class="bg-blue-500 text-white px-4 py-2 rounded">Test Search</button>
+            </div>
+            <div id="results" class="bg-gray-50 p-4 rounded min-h-[200px]">
+                <p class="text-gray-500">Results will appear here...</p>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Database Tests</h2>
+            <div class="space-y-4">
+                <button onclick="testProfilesTable()" class="bg-green-500 text-white px-4 py-2 rounded">Test Profiles Table</button>
+                <button onclick="testPostsTable()" class="bg-green-500 text-white px-4 py-2 rounded">Test Posts Table</button>
+                <button onclick="testRLS()" class="bg-yellow-500 text-white px-4 py-2 rounded">Test RLS Policies</button>
+            </div>
+            <div id="dbResults" class="bg-gray-50 p-4 rounded mt-4 min-h-[200px]">
+                <p class="text-gray-500">Database test results will appear here...</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initSupabase, supabase } from './js/supabase.js';
+        
+        // Initialize Supabase
+        initSupabase();
+        
+        window.testSearch = async function() {
+            const query = document.getElementById('testQuery').value;
+            const resultsDiv = document.getElementById('results');
+            
+            resultsDiv.innerHTML = '<p class="text-blue-500">Testing search...</p>';
+            
+            try {
+                // Test the same queries as in search.js
+                const [usersExact, usersPartial, postsSearch] = await Promise.all([
+                    supabase.from('profiles').select('username,display_name,profile_pic').eq('username', query).limit(3),
+                    supabase.from('profiles').select('username,display_name,profile_pic').ilike('username', `%${query}%`).limit(5),
+                    supabase.from('posts').select('id,title,body,created_at,upvotes').or(`title.ilike.%${query}%,body.ilike.%${query}%`).order('created_at',{ascending:false}).limit(5)
+                ]);
+                
+                let html = '<div class="space-y-4">';
+                html += `<h3 class="font-semibold">Search Query: "${query}"</h3>`;
+                
+                html += '<div class="border-l-4 border-blue-500 pl-4">';
+                html += '<h4 class="font-medium">Exact Username Matches:</h4>';
+                html += `<pre class="text-sm">${JSON.stringify(usersExact, null, 2)}</pre>`;
+                html += '</div>';
+                
+                html += '<div class="border-l-4 border-green-500 pl-4">';
+                html += '<h4 class="font-medium">Partial Username Matches:</h4>';
+                html += `<pre class="text-sm">${JSON.stringify(usersPartial, null, 2)}</pre>`;
+                html += '</div>';
+                
+                html += '<div class="border-l-4 border-purple-500 pl-4">';
+                html += '<h4 class="font-medium">Post Matches:</h4>';
+                html += `<pre class="text-sm">${JSON.stringify(postsSearch, null, 2)}</pre>`;
+                html += '</div>';
+                
+                html += '</div>';
+                
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+            }
+        };
+        
+        window.testProfilesTable = async function() {
+            const resultsDiv = document.getElementById('dbResults');
+            resultsDiv.innerHTML = '<p class="text-blue-500">Testing profiles table...</p>';
+            
+            try {
+                const { data, error } = await supabase.from('profiles').select('*').limit(5);
+                
+                let html = '<div class="space-y-4">';
+                html += '<h3 class="font-semibold">Profiles Table Test</h3>';
+                
+                if (error) {
+                    html += `<p class="text-red-500">Error: ${error.message}</p>`;
+                } else {
+                    html += `<p class="text-green-500">Success! Found ${data.length} profiles</p>`;
+                    html += `<pre class="text-sm">${JSON.stringify(data, null, 2)}</pre>`;
+                }
+                
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+            }
+        };
+        
+        window.testPostsTable = async function() {
+            const resultsDiv = document.getElementById('dbResults');
+            resultsDiv.innerHTML = '<p class="text-blue-500">Testing posts table...</p>';
+            
+            try {
+                const { data, error } = await supabase.from('posts').select('*').limit(5);
+                
+                let html = '<div class="space-y-4">';
+                html += '<h3 class="font-semibold">Posts Table Test</h3>';
+                
+                if (error) {
+                    html += `<p class="text-red-500">Error: ${error.message}</p>`;
+                } else {
+                    html += `<p class="text-green-500">Success! Found ${data.length} posts</p>`;
+                    html += `<pre class="text-sm">${JSON.stringify(data, null, 2)}</pre>`;
+                }
+                
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+            }
+        };
+        
+        window.testRLS = async function() {
+            const resultsDiv = document.getElementById('dbResults');
+            resultsDiv.innerHTML = '<p class="text-blue-500">Testing RLS policies...</p>';
+            
+            try {
+                // Test if we can read from tables (this will fail if RLS blocks us)
+                const [profilesTest, postsTest] = await Promise.all([
+                    supabase.from('profiles').select('count').limit(1),
+                    supabase.from('posts').select('count').limit(1)
+                ]);
+                
+                let html = '<div class="space-y-4">';
+                html += '<h3 class="font-semibold">RLS Policy Test</h3>';
+                
+                html += '<div class="border-l-4 border-blue-500 pl-4">';
+                html += '<h4 class="font-medium">Profiles Table Access:</h4>';
+                if (profilesTest.error) {
+                    html += `<p class="text-red-500">Blocked by RLS: ${profilesTest.error.message}</p>`;
+                } else {
+                    html += '<p class="text-green-500">✅ Profiles table accessible</p>';
+                }
+                html += '</div>';
+                
+                html += '<div class="border-l-4 border-green-500 pl-4">';
+                html += '<h4 class="font-medium">Posts Table Access:</h4>';
+                if (postsTest.error) {
+                    html += `<p class="text-red-500">Blocked by RLS: ${postsTest.error.message}</p>`;
+                } else {
+                    html += '<p class="text-green-500">✅ Posts table accessible</p>';
+                }
+                html += '</div>';
+                
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+            }
+        };
+    </script>
+</body>
+</html>

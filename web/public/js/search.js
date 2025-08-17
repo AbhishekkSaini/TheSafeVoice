@@ -14,64 +14,86 @@ export function mountUserSearch(inputSelector, resultsSelector){
     const q = (input.value||'').trim();
     if (q.length < 2){ results.classList.add('hidden'); results.innerHTML = ''; return; }
     
-    const like = `%${q}%`;
-    
-    // Search both users and posts
-    const [usersExact, usersPartial, postsSearch] = await Promise.all([
-      // Exact username matches (highest priority)
-      supabase.from('profiles').select('username,display_name,profile_pic').eq('username', q).limit(3),
-      // Partial username matches
-      supabase.from('profiles').select('username,display_name,profile_pic').ilike('username', like).limit(5),
-      // Posts that match in title OR body
-      supabase.from('posts').select('id,title,body,created_at,upvotes').or(`title.ilike.${like},body.ilike.${like}`).order('created_at',{ascending:false}).limit(5)
-    ]);
-    
-    let searchResults = [];
-    
-    // Add user results
-    (usersExact.data||[]).forEach(u=>searchResults.push({
-      type:'user', 
-      key:u.username, 
-      score:100, 
-      item:u
-    }));
-    
-    (usersPartial.data||[]).forEach(u=>{
-      if (!searchResults.find(r => r.type === 'user' && r.key === u.username)) {
-        searchResults.push({
-          type:'user', 
-          key:u.username, 
-          score:70, 
-          item:u
-        });
-      }
-    });
-    
-    // Add post results
-    (postsSearch.data||[]).forEach(p=>{
-      let score = 50;
-      if (p.title && p.title.toLowerCase().includes(q.toLowerCase())) score += 20;
-      if (p.body && p.body.toLowerCase().includes(q.toLowerCase())) score += 10;
-      
-      searchResults.push({
-        type:'post', 
-        key:p.id, 
-        score:score, 
-        item:p
-      });
-    });
-    
-    // Sort by score and limit results
-    const ranked = searchResults.sort((a,b)=>b.score - a.score).slice(0,8);
-    
-    if (ranked.length === 0){ 
-      results.classList.add('hidden'); 
-      results.innerHTML=''; 
-      return; 
+    // Debug: Check if supabase is initialized
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      return;
     }
     
-    results.innerHTML = ranked.map(r => r.type === 'user' ? renderUser(r.item) : renderPost(r.item)).join('');
-    results.classList.remove('hidden');
+    try {
+      // Search both users and posts with proper error handling
+      const [usersExact, usersPartial, postsSearch] = await Promise.all([
+        // Exact username matches (highest priority)
+        supabase.from('profiles').select('username,display_name,profile_pic').eq('username', q).limit(3),
+        // Partial username matches
+        supabase.from('profiles').select('username,display_name,profile_pic').ilike('username', `%${q}%`).limit(5),
+        // Posts that match in title OR body - fixed .or() syntax
+        supabase.from('posts').select('id,title,body,created_at,upvotes').or(`title.ilike.%${q}%,body.ilike.%${q}%`).order('created_at',{ascending:false}).limit(5)
+      ]);
+      
+      // Debug: Log all results to see what's happening
+      console.log('Search Debug:', { q, usersExact, usersPartial, postsSearch });
+      
+      let searchResults = [];
+      
+      // Add user results
+      if (usersExact.data && usersExact.data.length > 0) {
+        usersExact.data.forEach(u=>searchResults.push({
+          type:'user', 
+          key:u.username, 
+          score:100, 
+          item:u
+        }));
+      }
+      
+      if (usersPartial.data && usersPartial.data.length > 0) {
+        usersPartial.data.forEach(u=>{
+          if (!searchResults.find(r => r.type === 'user' && r.key === u.username)) {
+            searchResults.push({
+              type:'user', 
+              key:u.username, 
+              score:70, 
+              item:u
+            });
+          }
+        });
+      }
+      
+      // Add post results
+      if (postsSearch.data && postsSearch.data.length > 0) {
+        postsSearch.data.forEach(p=>{
+          let score = 50;
+          if (p.title && p.title.toLowerCase().includes(q.toLowerCase())) score += 20;
+          if (p.body && p.body.toLowerCase().includes(q.toLowerCase())) score += 10;
+          
+          searchResults.push({
+            type:'post', 
+            key:p.id, 
+            score:score, 
+            item:p
+          });
+        });
+      }
+      
+      // Sort by score and limit results
+      const ranked = searchResults.sort((a,b)=>b.score - a.score).slice(0,8);
+      
+      console.log('Final ranked results:', ranked);
+      
+      if (ranked.length === 0){ 
+        results.classList.add('hidden'); 
+        results.innerHTML=''; 
+        return; 
+      }
+      
+      results.innerHTML = ranked.map(r => r.type === 'user' ? renderUser(r.item) : renderPost(r.item)).join('');
+      results.classList.remove('hidden');
+      
+    } catch (error) {
+      console.error('Search error:', error);
+      results.classList.add('hidden');
+      results.innerHTML = '';
+    }
   }
 
   function renderUser(u){
