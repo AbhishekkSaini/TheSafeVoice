@@ -83,7 +83,18 @@
 
                 <div>
                     <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
-                    <input type="password" id="confirmPassword" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors" placeholder="Confirm your password">
+                    <div class="relative">
+                        <input type="password" id="confirmPassword" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors pr-12" placeholder="Confirm your password">
+                        <button type="button" id="toggleConfirmPassword" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                            <i data-lucide="eye" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <div id="passwordMatch" class="mt-2 text-xs hidden">
+                        <div class="flex items-center">
+                            <i data-lucide="x" class="w-3 h-3 text-red-500 mr-1"></i>
+                            <span class="text-red-500">Passwords do not match</span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="flex items-start">
@@ -143,21 +154,115 @@
     <script src="js/config.js"></script>
     <script>
         lucide.createIcons();
+        
+        // Password toggle functionality
         document.getElementById('togglePassword').addEventListener('click', function() {
             const password = document.getElementById('password');
             const icon = this.querySelector('i');
-            if (password.type === 'password') { password.type = 'text'; icon.setAttribute('data-lucide', 'eye-off'); } else { password.type = 'password'; icon.setAttribute('data-lucide', 'eye'); }
+            if (password.type === 'password') { 
+                password.type = 'text'; 
+                icon.setAttribute('data-lucide', 'eye-off'); 
+            } else { 
+                password.type = 'password'; 
+                icon.setAttribute('data-lucide', 'eye'); 
+            }
             lucide.createIcons();
         });
+        
+        // Confirm password toggle functionality
+        document.getElementById('toggleConfirmPassword').addEventListener('click', function() {
+            const confirmPassword = document.getElementById('confirmPassword');
+            const icon = this.querySelector('i');
+            if (confirmPassword.type === 'password') { 
+                confirmPassword.type = 'text'; 
+                icon.setAttribute('data-lucide', 'eye-off'); 
+            } else { 
+                confirmPassword.type = 'password'; 
+                icon.setAttribute('data-lucide', 'eye'); 
+            }
+            lucide.createIcons();
+        });
+        
+        // Password strength validation
         document.getElementById('password').addEventListener('input', function() {
             const password = this.value;
             const length = document.getElementById('length');
             const uppercase = document.getElementById('uppercase');
             const number = document.getElementById('number');
-            length.innerHTML = password.length >= 8 ? '<i data-lucide="check" class="w-3 h-3 text-green-500 mr-1"></i><span class="text-green-500">8+ characters</span>' : '<i data-lucide="x" class="w-3 h-3 text-red-500 mr-1"></i><span class="text-red-500">8+ characters</span>';
-            uppercase.innerHTML = /[A-Z]/.test(password) ? '<i data-lucide="check" class="w-3 h-3 text-green-500 mr-1"></i><span class="text-green-500">Uppercase</span>' : '<i data-lucide="x" class="w-3 h-3 text-red-500 mr-1"></i><span class="text-red-500">Uppercase</span>';
-            number.innerHTML = /\d/.test(password) ? '<i data-lucide="check" class="w-3 h-3 text-green-500 mr-1"></i><span class="text-green-500">Number</span>' : '<i data-lucide="x" class="w-3 h-3 text-red-500 mr-1"></i><span class="text-red-500">Number</span>';
+            
+            length.innerHTML = password.length >= 8 ? 
+                '<i data-lucide="check" class="w-3 h-3 text-green-500 mr-1"></i><span class="text-green-500">8+ characters</span>' : 
+                '<i data-lucide="x" class="w-3 h-3 text-red-500 mr-1"></i><span class="text-red-500">8+ characters</span>';
+            
+            uppercase.innerHTML = /[A-Z]/.test(password) ? 
+                '<i data-lucide="check" class="w-3 h-3 text-green-500 mr-1"></i><span class="text-green-500">Uppercase</span>' : 
+                '<i data-lucide="x" class="w-3 h-3 text-red-500 mr-1"></i><span class="text-red-500">Uppercase</span>';
+            
+            number.innerHTML = /\d/.test(password) ? 
+                '<i data-lucide="check" class="w-3 h-3 text-green-500 mr-1"></i><span class="text-green-500">Number</span>' : 
+                '<i data-lucide="x" class="w-3 h-3 text-red-500 mr-1"></i><span class="text-red-500">Number</span>';
+            
             lucide.createIcons();
+            checkPasswordMatch();
+        });
+        
+        // Password confirmation validation
+        document.getElementById('confirmPassword').addEventListener('input', function() {
+            checkPasswordMatch();
+        });
+        
+        // Function to check if passwords match
+        function checkPasswordMatch() {
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const passwordMatch = document.getElementById('passwordMatch');
+            const confirmPasswordInput = document.getElementById('confirmPassword');
+            
+            if (confirmPassword.length > 0) {
+                if (password === confirmPassword) {
+                    // Passwords match
+                    passwordMatch.innerHTML = '<div class="flex items-center"><i data-lucide="check" class="w-3 h-3 text-green-500 mr-1"></i><span class="text-green-500">Passwords match</span></div>';
+                    passwordMatch.classList.remove('hidden');
+                    confirmPasswordInput.classList.remove('border-red-500');
+                    confirmPasswordInput.classList.add('border-green-500');
+                } else {
+                    // Passwords don't match
+                    passwordMatch.innerHTML = '<div class="flex items-center"><i data-lucide="x" class="w-3 h-3 text-red-500 mr-1"></i><span class="text-red-500">Passwords do not match</span></div>';
+                    passwordMatch.classList.remove('hidden');
+                    confirmPasswordInput.classList.remove('border-green-500');
+                    confirmPasswordInput.classList.add('border-red-500');
+                }
+                lucide.createIcons();
+            } else {
+                // No confirm password entered yet
+                passwordMatch.classList.add('hidden');
+                confirmPasswordInput.classList.remove('border-red-500', 'border-green-500');
+            }
+        }
+        
+        // Form submission validation
+        document.getElementById('signupForm').addEventListener('submit', function(e) {
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            // Check if passwords match
+            if (password !== confirmPassword) {
+                e.preventDefault();
+                alert('❌ Passwords do not match! Please make sure both passwords are identical.');
+                document.getElementById('confirmPassword').focus();
+                return false;
+            }
+            
+            // Check password strength
+            if (password.length < 8 || !/[A-Z]/.test(password) || !/\d/.test(password)) {
+                e.preventDefault();
+                alert('❌ Password is too weak! Please make sure your password:\n• Has at least 8 characters\n• Contains an uppercase letter\n• Contains a number');
+                document.getElementById('password').focus();
+                return false;
+            }
+            
+            // If all validations pass, allow form submission
+            return true;
         });
     </script>
     <script type="module">

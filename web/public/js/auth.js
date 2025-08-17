@@ -63,6 +63,7 @@ export function mountAuthUiHooks() {
             e.preventDefault();
             const email = document.getElementById('email')?.value?.trim();
             const password = document.getElementById('password')?.value;
+            const confirmPassword = document.getElementById('confirmPassword')?.value;
             const firstName = document.getElementById('firstName')?.value?.trim();
             const lastName = document.getElementById('lastName')?.value?.trim();
             const username = document.getElementById('username')?.value?.trim();
@@ -72,6 +73,32 @@ export function mountAuthUiHooks() {
 
             if (!email || !password) return alert('Email and password required');
             if (!phone10) return alert('Phone number required');
+            
+            // Password confirmation validation
+            if (password !== confirmPassword) {
+                alert('❌ Passwords do not match! Please make sure both passwords are identical.');
+                document.getElementById('confirmPassword').focus();
+                return;
+            }
+            
+            // Password strength validation
+            if (password.length < 8) {
+                alert('❌ Password must be at least 8 characters long.');
+                document.getElementById('password').focus();
+                return;
+            }
+            
+            if (!/[A-Z]/.test(password)) {
+                alert('❌ Password must contain at least one uppercase letter.');
+                document.getElementById('password').focus();
+                return;
+            }
+            
+            if (!/\d/.test(password)) {
+                alert('❌ Password must contain at least one number.');
+                document.getElementById('password').focus();
+                return;
+            }
 
             // India-only (+91) phone normalization and validation
             const normalizePhoneIndia = (input) => {
