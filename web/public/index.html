@@ -532,6 +532,19 @@
         mountUserSearch('#nav-user-search', '#nav-user-results');
         mountUserSearch('#mobile-search', '#mobile-search-results');
         mountUserSearch('#hero-search', '#hero-search-results');
+        
+        // Add search button functionality
+        const heroSearchBtn = document.getElementById('hero-search-btn');
+        const heroSearchInput = document.getElementById('hero-search');
+        if (heroSearchBtn && heroSearchInput) {
+            heroSearchBtn.addEventListener('click', () => {
+                const query = heroSearchInput.value.trim();
+                if (query) {
+                    window.location.href = `search.html?q=${encodeURIComponent(query)}`;
+                }
+            });
+        }
+        
         replaceNativeAlerts();
         // Trending + Categories + Quick Help Strip + New Member Hook + (optional) Safety Map
         // Reverted to original simple homepage blocks
