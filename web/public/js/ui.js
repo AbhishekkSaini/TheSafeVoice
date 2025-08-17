@@ -53,4 +53,98 @@ export function replaceNativeAlerts(){
   };
 }
 
+// Network status monitoring utility
+export class NetworkMonitor {
+    constructor() {
+        this.isOnline = navigator.onLine;
+        this.listeners = [];
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        window.addEventListener('online', () => {
+            this.isOnline = true;
+            this.notifyListeners(true);
+            this.showNotification('✅ Internet connection restored', 'success');
+        });
+
+        window.addEventListener('offline', () => {
+            this.isOnline = false;
+            this.notifyListeners(false);
+            this.showNotification('⚠️ No internet connection', 'error');
+        });
+    }
+
+    addListener(callback) {
+        this.listeners.push(callback);
+        // Immediately call with current status
+        callback(this.isOnline);
+    }
+
+    removeListener(callback) {
+        const index = this.listeners.indexOf(callback);
+        if (index > -1) {
+            this.listeners.splice(index, 1);
+        }
+    }
+
+    notifyListeners(isOnline) {
+        this.listeners.forEach(callback => callback(isOnline));
+    }
+
+    showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full ${
+            type === 'error' ? 'bg-red-500 text-white' :
+            type === 'success' ? 'bg-green-500 text-white' :
+            'bg-blue-500 text-white'
+        }`;
+        notification.textContent = message;
+
+        // Add to page
+        document.body.appendChild(notification);
+
+        // Animate in
+        setTimeout(() => {
+            notification.classList.remove('translate-x-full');
+        }, 100);
+
+        // Remove after 3 seconds
+        setTimeout(() => {
+            notification.classList.add('translate-x-full');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 3000);
+    }
+
+    checkConnectivity() {
+        return this.isOnline;
+    }
+
+    // Test actual connectivity by making a lightweight request
+    async testConnectivity() {
+        try {
+            const response = await fetch('https://httpbin.org/get', {
+                method: 'HEAD',
+                cache: 'no-cache',
+                timeout: 5000
+            });
+            return response.ok;
+        } catch (error) {
+            console.warn('Connectivity test failed:', error);
+            return false;
+        }
+    }
+}
+
+// Global network monitor instance
+export const networkMonitor = new NetworkMonitor();
+
+// Export for use in other modules
+export default networkMonitor;
+
 

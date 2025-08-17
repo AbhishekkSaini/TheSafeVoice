@@ -2,6 +2,29 @@ import { initSupabase, supabase } from './supabase.js';
 
 function debounce(fn, wait){ let t=null; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),wait); } }
 
+// Add retry function for network requests
+async function retryRequest(requestFn, maxRetries = 3, delay = 1000) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      console.warn(`Search attempt ${attempt} failed:`, error);
+      
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, delay * attempt));
+    }
+  }
+}
+
+// Check network connectivity
+function checkNetworkConnectivity() {
+  return navigator.onLine;
+}
+
 export function mountUserSearch(inputSelector, resultsSelector){
   initSupabase();
   const input = document.querySelector(inputSelector);
@@ -14,31 +37,46 @@ export function mountUserSearch(inputSelector, resultsSelector){
     const q = (input.value||'').trim();
     if (q.length < 2){ results.classList.add('hidden'); results.innerHTML = ''; return; }
     
-    // Debug: Check if supabase is initialized
-    if (!supabase) {
-      console.error('Supabase not initialized');
+    // Check network connectivity first
+    if (!checkNetworkConnectivity()) {
+      results.classList.remove('hidden');
+      results.innerHTML = '<div class="px-3 py-2 text-red-600 text-sm">⚠️ No internet connection. Please check your network and try again.</div>';
       return;
     }
     
+    // Debug: Check if supabase is initialized
+    if (!supabase) {
+      console.error('Supabase not initialized');
+      results.classList.remove('hidden');
+      results.innerHTML = '<div class="px-3 py-2 text-red-600 text-sm">⚠️ Search service not available. Please refresh the page.</div>';
+      return;
+    }
+    
+    // Show loading state
+    results.classList.remove('hidden');
+    results.innerHTML = '<div class="px-3 py-2 text-gray-600 text-sm">🔍 Searching...</div>';
+    
     try {
-      // Search both users and posts with proper error handling
-      const [usersExact, usersPartial, postsSearch] = await Promise.all([
+      // Search both users and posts with retry logic and proper error handling
+      const searchPromises = [
         // Exact username matches (highest priority)
-        supabase.from('profiles').select('username,display_name,profile_pic').eq('username', q).limit(3),
+        retryRequest(() => supabase.from('profiles').select('username,display_name,profile_pic').eq('username', q).limit(3)),
         // Partial username matches
-        supabase.from('profiles').select('username,display_name,profile_pic').ilike('username', `%${q}%`).limit(5),
+        retryRequest(() => supabase.from('profiles').select('username,display_name,profile_pic').ilike('username', `%${q}%`).limit(5)),
         // Posts that match in title OR body - fixed .or() syntax
-        supabase.from('posts').select('id,title,body,created_at,upvotes').or(`title.ilike.%${q}%,body.ilike.%${q}%`).order('created_at',{ascending:false}).limit(5)
-      ]);
+        retryRequest(() => supabase.from('posts').select('id,title,body,created_at,upvotes').or(`title.ilike.%${q}%,body.ilike.%${q}%`).order('created_at',{ascending:false}).limit(5))
+      ];
+      
+      const [usersExact, usersPartial, postsSearch] = await Promise.allSettled(searchPromises);
       
       // Debug: Log all results to see what's happening
       console.log('Search Debug:', { q, usersExact, usersPartial, postsSearch });
       
       let searchResults = [];
       
-      // Add user results
-      if (usersExact.data && usersExact.data.length > 0) {
-        usersExact.data.forEach(u=>searchResults.push({
+      // Handle user results with error checking
+      if (usersExact.status === 'fulfilled' && usersExact.value.data && usersExact.value.data.length > 0) {
+        usersExact.value.data.forEach(u=>searchResults.push({
           type:'user', 
           key:u.username, 
           score:100, 
@@ -46,8 +84,8 @@ export function mountUserSearch(inputSelector, resultsSelector){
         }));
       }
       
-      if (usersPartial.data && usersPartial.data.length > 0) {
-        usersPartial.data.forEach(u=>{
+      if (usersPartial.status === 'fulfilled' && usersPartial.value.data && usersPartial.value.data.length > 0) {
+        usersPartial.value.data.forEach(u=>{
           if (!searchResults.find(r => r.type === 'user' && r.key === u.username)) {
             searchResults.push({
               type:'user', 
@@ -59,9 +97,9 @@ export function mountUserSearch(inputSelector, resultsSelector){
         });
       }
       
-      // Add post results
-      if (postsSearch.data && postsSearch.data.length > 0) {
-        postsSearch.data.forEach(p=>{
+      // Handle post results with error checking
+      if (postsSearch.status === 'fulfilled' && postsSearch.value.data && postsSearch.value.data.length > 0) {
+        postsSearch.value.data.forEach(p=>{
           let score = 50;
           if (p.title && p.title.toLowerCase().includes(q.toLowerCase())) score += 20;
           if (p.body && p.body.toLowerCase().includes(q.toLowerCase())) score += 10;
@@ -75,14 +113,20 @@ export function mountUserSearch(inputSelector, resultsSelector){
         });
       }
       
+      // Check if any requests failed
+      const failedRequests = [usersExact, usersPartial, postsSearch].filter(req => req.status === 'rejected');
+      if (failedRequests.length > 0) {
+        console.warn('Some search requests failed:', failedRequests);
+      }
+      
       // Sort by score and limit results
       const ranked = searchResults.sort((a,b)=>b.score - a.score).slice(0,8);
       
       console.log('Final ranked results:', ranked);
       
       if (ranked.length === 0){ 
-        results.classList.add('hidden'); 
-        results.innerHTML=''; 
+        results.classList.remove('hidden');
+        results.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No results found</div>';
         return; 
       }
       
@@ -91,8 +135,17 @@ export function mountUserSearch(inputSelector, resultsSelector){
       
     } catch (error) {
       console.error('Search error:', error);
-      results.classList.add('hidden');
-      results.innerHTML = '';
+      results.classList.remove('hidden');
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Search failed. Please try again.';
+      if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        errorMessage = '⚠️ Network error. Please check your internet connection and try again.';
+      } else if (error.message?.includes('timeout')) {
+        errorMessage = '⏱️ Request timed out. Please try again.';
+      }
+      
+      results.innerHTML = `<div class="px-3 py-2 text-red-600 text-sm">${errorMessage}</div>`;
     }
   }
 

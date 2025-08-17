@@ -13,7 +13,13 @@
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <a href="forum.html" class="text-gray-700 hover:text-orange-600">Back</a>
-                <a href="messages.html" class="text-gray-700 hover:text-orange-600">Messages</a>
+                <div class="flex items-center gap-4">
+                    <div id="network-status" class="flex items-center gap-2 text-sm">
+                        <div id="status-dot" class="w-2 h-2 rounded-full bg-gray-400"></div>
+                        <span id="status-text" class="text-gray-600">Checking connection...</span>
+                    </div>
+                    <a href="messages.html" class="text-gray-700 hover:text-orange-600">Messages</a>
+                </div>
             </div>
         </div>
     </nav>
@@ -45,7 +51,39 @@
     <script src="js/config.js"></script>
     <script type="module">
         import { initSupabase, supabase } from './js/supabase.js';
+        import { networkMonitor } from './js/ui.js';
+        
         initSupabase();
+        
+        // Initialize network monitoring
+        networkMonitor.addListener((isOnline) => {
+            if (!isOnline) {
+                mixed.innerHTML = '<div class="text-red-600 text-center py-4">⚠️ No internet connection. Please check your network and try again.</div>';
+            }
+            
+            // Update network status indicator
+            updateNetworkStatus(isOnline);
+        });
+        
+        // Update network status indicator
+        function updateNetworkStatus(isOnline) {
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            
+            if (isOnline) {
+                statusDot.className = 'w-2 h-2 rounded-full bg-green-500';
+                statusText.textContent = 'Connected';
+                statusText.className = 'text-green-600';
+            } else {
+                statusDot.className = 'w-2 h-2 rounded-full bg-red-500';
+                statusText.textContent = 'Offline';
+                statusText.className = 'text-red-600';
+            }
+        }
+        
+        // Initialize status on page load
+        updateNetworkStatus(networkMonitor.checkConnectivity());
+        
         const q = document.getElementById('q');
         const mixed = document.getElementById('mixed');
         const fUsers = document.getElementById('f-users');
@@ -54,99 +92,166 @@
         const fTrending = document.getElementById('f-trending');
         document.getElementById('go').addEventListener('click', run);
         q.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ run(); }});
+        
+        // Add retry function for network requests
+        async function retryRequest(requestFn, maxRetries = 3, delay = 1000) {
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    return await requestFn();
+                } catch (error) {
+                    console.warn(`Search attempt ${attempt} failed:`, error);
+                    
+                    if (attempt === maxRetries) {
+                        throw error;
+                    }
+                    
+                    // Wait before retrying
+                    await new Promise(resolve => setTimeout(resolve, delay * attempt));
+                }
+            }
+        }
+        
+        // Check network connectivity
+        function checkNetworkConnectivity() {
+            return networkMonitor.checkConnectivity();
+        }
+        
         async function run(){
             const text = (q.value||'').trim();
             if(!text){ mixed.innerHTML=''; return; }
+            
+            // Check network connectivity first
+            if (!checkNetworkConnectivity()) {
+                mixed.innerHTML = '<div class="text-red-600 text-center py-4">⚠️ No internet connection. Please check your network and try again.</div>';
+                return;
+            }
+            
+            // Show loading state
+            mixed.innerHTML = '<div class="text-gray-600 text-center py-4">🔍 Searching...</div>';
+            
             const like = `%${text}%`;
             
-            // Search queries - improved to be more comprehensive
-            const [usersExact, usersPartial, postsSearch] = await Promise.all([
-                // Exact username matches (highest priority)
-                supabase.from('profiles').select('username,display_name,profile_pic').eq('username', text).limit(5),
-                // Partial username matches
-                supabase.from('profiles').select('username,display_name,profile_pic').ilike('username', like).limit(15),
-                // Posts that match in title OR body (combined search)
-                supabase.from('posts').select('id,title,body,created_at,upvotes').or(`title.ilike.${like},body.ilike.${like}`).order('created_at',{ascending:false}).limit(30)
-            ]);
-            
-            let results = [];
-            const now = Date.now();
-            
-            function timeBoost(ts){ 
-                if(!fRecent.checked) return 0; 
-                const ageH = (now - new Date(ts).getTime())/(1000*60*60); 
-                return Math.max(0, 24 - ageH) * 0.5; 
-            }
-            
-            function trendBoost(up){ 
-                return fTrending.checked ? Math.min(5, (up||0)/5) : 0; 
-            }
-            
-            // Add user results
-            if (fUsers.checked){
-                // Exact username matches get highest score
-                (usersExact.data||[]).forEach(u=>results.push({
-                    type:'user', 
-                    key:u.username, 
-                    score:100, 
-                    item:u
-                }));
+            try {
+                // Search queries - improved to be more comprehensive with retry logic
+                const searchPromises = [
+                    // Exact username matches (highest priority)
+                    retryRequest(() => supabase.from('profiles').select('username,display_name,profile_pic').eq('username', text).limit(5)),
+                    // Partial username matches
+                    retryRequest(() => supabase.from('profiles').select('username,display_name,profile_pic').ilike('username', like).limit(15)),
+                    // Posts that match in title OR body (combined search)
+                    retryRequest(() => supabase.from('posts').select('id,title,body,created_at,upvotes').or(`title.ilike.${like},body.ilike.${like}`).order('created_at',{ascending:false}).limit(30))
+                ];
                 
-                // Partial username matches
-                (usersPartial.data||[]).forEach(u=>{
-                    // Skip if already added as exact match
-                    if (!results.find(r => r.type === 'user' && r.key === u.username)) {
-                        results.push({
+                const [usersExact, usersPartial, postsSearch] = await Promise.allSettled(searchPromises);
+                
+                let results = [];
+                const now = Date.now();
+                
+                function timeBoost(ts){ 
+                    if(!fRecent.checked) return 0; 
+                    const ageH = (now - new Date(ts).getTime())/(1000*60*60); 
+                    return Math.max(0, 24 - ageH) * 0.5; 
+                }
+                
+                function trendBoost(up){ 
+                    return fTrending.checked ? Math.min(5, (up||0)/5) : 0; 
+                }
+                
+                // Check if any requests failed
+                const failedRequests = [usersExact, usersPartial, postsSearch].filter(req => req.status === 'rejected');
+                if (failedRequests.length > 0) {
+                    console.warn('Some search requests failed:', failedRequests);
+                }
+                
+                // Add user results
+                if (fUsers.checked){
+                    // Exact username matches get highest score
+                    if (usersExact.status === 'fulfilled' && usersExact.value.data) {
+                        usersExact.value.data.forEach(u=>results.push({
                             type:'user', 
                             key:u.username, 
-                            score:70, 
+                            score:100, 
                             item:u
+                        }));
+                    }
+                    
+                    // Partial username matches
+                    if (usersPartial.status === 'fulfilled' && usersPartial.value.data) {
+                        usersPartial.value.data.forEach(u=>{
+                            // Skip if already added as exact match
+                            if (!results.find(r => r.type === 'user' && r.key === u.username)) {
+                                results.push({
+                                    type:'user', 
+                                    key:u.username, 
+                                    score:70, 
+                                    item:u
+                                });
+                            }
                         });
                     }
-                });
-            }
-            
-            // Add post results
-            if (fPosts.checked){
-                (postsSearch.data||[]).forEach(p=>{
-                    let score = 50; // Base score for posts
-                    
-                    // Boost if title matches (title matches are more important)
-                    if (p.title && p.title.toLowerCase().includes(text.toLowerCase())) {
-                        score += 20;
-                    }
-                    
-                    // Boost if body matches
-                    if (p.body && p.body.toLowerCase().includes(text.toLowerCase())) {
-                        score += 10;
-                    }
-                    
-                    // Add time and trend boosts
-                    score += timeBoost(p.created_at) + trendBoost(p.upvotes);
-                    
-                    results.push({
-                        type:'post', 
-                        key:p.id, 
-                        score:score, 
-                        item:p
-                    });
-                });
-            }
-            
-            // Sort by score (highest first), then by recency for same scores
-            const ranked = results.sort((a,b)=>{
-                if (b.score !== a.score) return b.score - a.score;
-                // If scores are equal, sort by recency
-                if (a.type === 'post' && b.type === 'post') {
-                    return new Date(b.item.created_at) - new Date(a.item.created_at);
                 }
-                // Users come before posts if scores are equal
-                if (a.type === 'user' && b.type === 'post') return -1;
-                if (a.type === 'post' && b.type === 'user') return 1;
-                return 0;
-            }).slice(0,30);
-            
-            mixed.innerHTML = ranked.map(r=> r.type==='user' ? renderUser(r.item) : renderPost(r.item)).join('') || '<div class="text-gray-500">No results</div>';
+                
+                // Add post results
+                if (fPosts.checked){
+                    if (postsSearch.status === 'fulfilled' && postsSearch.value.data) {
+                        postsSearch.value.data.forEach(p=>{
+                            let score = 50; // Base score for posts
+                            
+                            // Boost if title matches (title matches are more important)
+                            if (p.title && p.title.toLowerCase().includes(text.toLowerCase())) {
+                                score += 20;
+                            }
+                            
+                            // Boost if body matches
+                            if (p.body && p.body.toLowerCase().includes(text.toLowerCase())) {
+                                score += 10;
+                            }
+                            
+                            // Add time and trend boosts
+                            score += timeBoost(p.created_at) + trendBoost(p.upvotes);
+                            
+                            results.push({
+                                type:'post', 
+                                key:p.id, 
+                                score:score, 
+                                item:p
+                            });
+                        });
+                    }
+                }
+                
+                // Sort by score (highest first), then by recency for same scores
+                const ranked = results.sort((a,b)=>{
+                    if (b.score !== a.score) return b.score - a.score;
+                    // If scores are equal, sort by recency
+                    if (a.type === 'post' && b.type === 'post') {
+                        return new Date(b.item.created_at) - new Date(a.item.created_at);
+                    }
+                    // Users come before posts if scores are equal
+                    if (a.type === 'user' && b.type === 'post') return -1;
+                    if (a.type === 'post' && b.type === 'user') return 1;
+                    return 0;
+                }).slice(0,30);
+                
+                if (ranked.length === 0) {
+                    mixed.innerHTML = '<div class="text-gray-500 text-center py-4">No results found</div>';
+                } else {
+                    mixed.innerHTML = ranked.map(r=> r.type==='user' ? renderUser(r.item) : renderPost(r.item)).join('');
+                }
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                
+                // Provide user-friendly error messages
+                let errorMessage = 'Search failed. Please try again.';
+                if (error.message?.includes('network') || error.message?.includes('fetch')) {
+                    errorMessage = '⚠️ Network error. Please check your internet connection and try again.';
+                } else if (error.message?.includes('timeout')) {
+                    errorMessage = '⏱️ Request timed out. Please try again.';
+                }
+                
+                mixed.innerHTML = `<div class="text-red-600 text-center py-4">${errorMessage}</div>`;
+            }
         }
         function renderUser(u){
             return `<div class="flex items-center justify-between px-3 py-2 border rounded-xl hover:bg-gray-50 transition-colors">
