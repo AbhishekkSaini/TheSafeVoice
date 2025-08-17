@@ -58,10 +58,9 @@
             const text = (q.value||'').trim();
             if(!text){ mixed.innerHTML=''; return; }
             const like = `%${text}%`;
-            const prefix = text + '%';
             const [usersEq, usersIlike, postsTitle, postsBody, postsRecent] = await Promise.all([
                 supabase.from('profiles').select('username,display_name,profile_pic').eq('username', text).limit(5),
-                supabase.from('profiles').select('username,display_name,profile_pic').ilike('username', prefix).limit(10),
+                supabase.from('profiles').select('username,display_name,profile_pic').ilike('username', like).limit(10),
                 supabase.from('posts').select('id,title,body,created_at,upvotes').ilike('title', like).limit(20),
                 supabase.from('posts').select('id,title,body,created_at,upvotes').ilike('body', like).limit(20),
                 supabase.from('posts').select('id,title,body,created_at,upvotes').order('created_at',{ascending:false}).limit(10)

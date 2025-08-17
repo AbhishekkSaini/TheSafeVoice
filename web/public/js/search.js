@@ -16,7 +16,7 @@ export function mountUserSearch(inputSelector, resultsSelector){
     const { data } = await supabase
       .from('profiles')
       .select('username,profile_pic,display_name')
-      .ilike('username', q + '%')
+      .ilike('username', `%${q}%`)
       .limit(8);
     const users = data || [];
     if (users.length === 0){ results.classList.add('hidden'); results.innerHTML=''; return; }

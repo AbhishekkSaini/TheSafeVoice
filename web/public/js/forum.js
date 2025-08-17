@@ -70,7 +70,7 @@ function mountQuickUserSearch(){
     const run = debounce(async ()=>{
         const text = (input.value||'').trim();
         if (text.length < 2){ panel.innerHTML=''; panel.classList.add('hidden'); return; }
-        const { data } = await supabase.from('profiles').select('username,profile_pic,display_name').ilike('username', text+'%').limit(8);
+        const { data } = await supabase.from('profiles').select('username,profile_pic,display_name').ilike('username', `%${text}%`).limit(8);
         const list = (data||[]);
         if (list.length === 0){ panel.innerHTML=''; panel.classList.add('hidden'); return; }
         panel.innerHTML = list.map(u=>`
