@@ -3,6 +3,18 @@ import { initSupabase, supabase, ensureProfile, getUser } from './supabase.js';
 export function mountAuthUiHooks() {
     initSupabase();
 
+    // Handle OAuth errors returned in URL and clean up URL
+    try {
+        const rawHash = window.location.hash || "";
+        const params = new URLSearchParams((rawHash.startsWith('#') ? rawHash.replace('#', '?') : rawHash) || window.location.search || "");
+        const oauthError = params.get('error') || params.get('error_description');
+        if (oauthError) {
+            alert(decodeURIComponent(oauthError));
+            // Remove tokens/error params from URL without reloading
+            try { window.history.replaceState({}, document.title, window.location.pathname); } catch {}
+        }
+    } catch {}
+
     const signupForm = document.getElementById('signupForm');
     const loginForm = document.getElementById('loginForm');
     // Support multiple logout buttons across pages (desktop + mobile)
@@ -45,15 +57,20 @@ export function mountAuthUiHooks() {
 
     updateLogoutVisibility();
     try {
-        supabase.auth.onAuthStateChange((event, session) => {
+        supabase.auth.onAuthStateChange(async (event, session) => {
             updateLogoutVisibility();
-            // Redirect only after explicit auth flows (login/signup/OAuth callback),
-            // do NOT force-redirect from homepage or other pages when already logged in
             const path = window.location.pathname || '';
             const isAuthPage = /login\.html$|signup\.html$/i.test(path);
             const hasOAuthToken = /(access_token|code)=/i.test(window.location.hash || window.location.search);
-            if (session && (isAuthPage || hasOAuthToken)) {
-                window.location.href = 'forum.html';
+            if (session) {
+                try {
+                    // Ensure profile exists for OAuth sign-ins as well
+                    await ensureProfile(session.user?.id);
+                } catch {}
+                try { localStorage.setItem('isLoggedIn', 'true'); } catch {}
+                if (isAuthPage || hasOAuthToken) {
+                    window.location.href = 'forum.html';
+                }
             }
         });
     } catch {}
