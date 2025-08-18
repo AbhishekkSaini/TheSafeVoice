@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
     <title>Messages - TheSafeVoice</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -96,7 +96,7 @@
         }
     </style>
 </head>
-<body class="font-sans bg-white h-screen overflow-hidden">
+<body class="font-sans bg-white h-screen overflow-hidden safe-bottom">
     <!-- Instagram-style Navigation -->
     <nav class="bg-white border-b border-gray-200 h-16 flex items-center px-6 shadow-sm">
         <div class="flex items-center justify-between w-full max-w-6xl mx-auto">
@@ -138,9 +138,9 @@
     </nav>
 
     <!-- Main Content -->
-    <div class="flex h-[calc(100vh-4rem)]">
+    <div class="flex h-[calc(100vh-4rem)] messages-layout">
         <!-- Left Sidebar - Conversations -->
-        <div class="w-80 border-r border-gray-200 flex flex-col bg-white">
+        <div class="w-80 border-r border-gray-200 flex flex-col bg-white messages-sidebar">
             <!-- Header -->
             <div class="p-4 border-b border-gray-200 bg-white">
                 <div class="flex items-center justify-between">
@@ -174,7 +174,7 @@
         </div>
 
         <!-- Right Side - Chat Area -->
-        <div class="flex-1 flex flex-col bg-white">
+        <div class="flex-1 flex flex-col bg-white messages-chat">
             <!-- Chat Header -->
             <div id="chat-header" class="h-16 border-b border-gray-200 flex items-center px-6 bg-white hidden">
                 <div class="flex items-center space-x-3">

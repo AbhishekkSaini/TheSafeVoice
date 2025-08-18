@@ -273,6 +273,22 @@ select:focus {
     }
 }
 
+/* iOS notch safe-areas for legacy static pages */
+.safe-top { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-left { padding-left: env(safe-area-inset-left); }
+.safe-right { padding-right: env(safe-area-inset-right); }
+
+/* For fixed FAB/buttons near bottom on iOS */
+.safe-fixed-bottom { bottom: calc(1.25rem + env(safe-area-inset-bottom)); }
+
+/* Messages layout mobile behavior */
+@media (max-width: 768px) {
+    .messages-layout { flex-direction: column; }
+    .messages-sidebar { width: 100% !important; }
+    .messages-chat { display: flex; }
+}
+
 /* High Contrast Mode Support */
 @media (prefers-contrast: high) {
     .bg-gradient-to-br,

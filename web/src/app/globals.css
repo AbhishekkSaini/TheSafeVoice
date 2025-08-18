@@ -1,1 +1,15 @@
 /* Keep minimal to not affect legacy HTML UI */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Mobile-friendly base for Next.js app */
+html, body { -webkit-text-size-adjust: 100%; }
+img, video, canvas, svg { max-width: 100%; height: auto; }
+* { box-sizing: border-box; }
+body { overflow-x: hidden; }
+
+/* iOS safe-area helpers */
+.safe-top { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
