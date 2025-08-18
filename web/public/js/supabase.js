@@ -12,18 +12,24 @@ function ensureConfig() {
     return true;
 }
 
-export function initSupabase() {
+export async function initSupabase() {
     if (!ensureConfig()) return null;
     if (supabase) return supabase;
     supabaseUrl = window.SAFEVOICE_CONFIG.supabaseUrl;
     const anonKey = window.SAFEVOICE_CONFIG.supabaseAnonKey;
 
-    const { createClient } = window.supabase || {};
-    if (!createClient) {
-        console.error("TheSafeVoice: Supabase JS not loaded. Include https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm in a module script or a UMD build.");
-        return null;
+    let createClientFn = window.supabase && window.supabase.createClient;
+    if (!createClientFn) {
+        // Fallback to ESM import if UMD not present
+        try {
+            const mod = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+            createClientFn = mod.createClient;
+        } catch (e) {
+            console.error('TheSafeVoice: Failed to load Supabase client', e);
+            return null;
+        }
     }
-    supabase = createClient(supabaseUrl, anonKey, {
+    supabase = createClientFn(supabaseUrl, anonKey, {
         auth: {
             persistSession: true,
             detectSessionInUrl: true,
