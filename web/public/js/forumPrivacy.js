@@ -1,7 +1,7 @@
 // Privacy-Aware Forum Component for SafeVoice
 // Shows limited preview for anonymous users, full access for authenticated users
 
-import { initSupabase, supabase } from './supabase.js';
+import { initSupabase, supabase, getUser } from './supabase.js';
 import { privacyAwareSearch, isAuthenticated, getPreviewMessage } from './privacySearch.js';
 
 // Initialize Supabase
@@ -215,6 +215,38 @@ export async function mountPrivacyAwareForum() {
                     </div>
                 </div>
             `;
+        } else {
+            // Authenticated users: intercept submit and insert via Supabase without page refresh
+            const titleEl = document.getElementById('composer-title');
+            const bodyEl = document.getElementById('composer-body');
+            const anonToggle = document.getElementById('composer-anon');
+            const catSelect = document.getElementById('composer-category');
+            if (catSelect && !catSelect.options.length) {
+                const fallbackCats = ['safety_tips', 'legal_advice', 'emergency_help', 'survivor_stories'];
+                catSelect.innerHTML = fallbackCats.map(c => `<option value="${c}">${c.replace(/_/g, ' ')}</option>`).join('');
+            }
+            postComposer.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const title = titleEl?.value?.trim();
+                const body = bodyEl?.value?.trim();
+                const category = catSelect?.value || null;
+                if (!title || !body) { alert('Please provide a title and content'); return; }
+                try {
+                    const user = await getUser();
+                    const { error } = await supabase.from('posts').insert({
+                        title,
+                        body,
+                        category,
+                        is_anonymous: !!anonToggle?.checked,
+                        author_id: user?.id || null
+                    });
+                    if (error) { alert(error.message); return; }
+                    postComposer.reset();
+                    await loadForumData(category);
+                } catch (err) {
+                    alert(err?.message || 'Failed to create post');
+                }
+            });
         }
     }
     
