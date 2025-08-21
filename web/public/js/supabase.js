@@ -18,12 +18,11 @@ export function initSupabase() {
     supabaseUrl = window.SAFEVOICE_CONFIG.supabaseUrl;
     const anonKey = window.SAFEVOICE_CONFIG.supabaseAnonKey;
 
-    const { createClient } = window.supabase || {};
-    if (!createClient) {
-        console.error("TheSafeVoice: Supabase JS not loaded. Include https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm in a module script or a UMD build.");
+    if (!window.supabase) {
+        console.error("TheSafeVoice: Supabase JS not loaded. Include https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2 in a script tag.");
         return null;
     }
-    supabase = createClient(supabaseUrl, anonKey, {
+    supabase = window.supabase.createClient(supabaseUrl, anonKey, {
         auth: {
             persistSession: true,
             detectSessionInUrl: true,

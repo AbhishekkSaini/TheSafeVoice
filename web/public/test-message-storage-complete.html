@@ -78,7 +78,7 @@
 
     <script src="js/config.js"></script>
     <script type="module">
-        import { initSupabase, supabase, getUser } from './js/supabase.js';
+        import { initSupabase, supabase, getUser } from 'js/supabase.js';
         initSupabase();
 
         const testResults = document.getElementById('test-results');
@@ -108,6 +108,40 @@
                     return;
                 }
                 addResult('✅ User authenticated: ' + user.email, 'success');
+                
+                // Test 1.5: Check if messages table has required columns
+                try {
+                    const { data: tableInfo, error: tableError } = await supabase
+                        .from('messages')
+                        .select('temp_id, status, read_at, delivered_at')
+                        .limit(1);
+                    
+                    if (tableError) {
+                        addResult('❌ Messages table missing required columns: ' + tableError.message, 'error');
+                        addResult('💡 Run the complete_messaging_storage.sql migration first', 'warning');
+                    } else {
+                        addResult('✅ Messages table has all required columns', 'success');
+                    }
+                } catch (e) {
+                    addResult('❌ Table structure check failed: ' + e.message, 'error');
+                }
+                
+                // Test 1.6: Check if conversations table exists
+                try {
+                    const { data: convTableInfo, error: convTableError } = await supabase
+                        .from('conversations')
+                        .select('conversation_id, participant1_id, participant2_id')
+                        .limit(1);
+                    
+                    if (convTableError) {
+                        addResult('❌ Conversations table missing: ' + convTableError.message, 'error');
+                        addResult('💡 Run the complete_messaging_storage.sql migration first', 'warning');
+                    } else {
+                        addResult('✅ Conversations table exists', 'success');
+                    }
+                } catch (e) {
+                    addResult('❌ Conversations table check failed: ' + e.message, 'error');
+                }
                 
                 // Test 2: Check if new functions exist
                 try {
