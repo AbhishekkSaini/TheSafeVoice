@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+    <title>Test Forum Posting - SafeVoice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8 text-center">Test Forum Posting Functionality</h1>
+        
+        <div id="test-results" class="space-y-4"></div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+            <!-- Create Post Test -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Create Post Test</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Title:</label>
+                        <input id="post-title" type="text" class="w-full p-2 border rounded" placeholder="Enter post title">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Content:</label>
+                        <textarea id="post-body" class="w-full p-2 border rounded" rows="4" placeholder="Enter post content"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Category:</label>
+                        <select id="post-category" class="w-full p-2 border rounded">
+                            <option value="">Select category</option>
+                            <option value="safety_tips">Safety Tips</option>
+                            <option value="legal_advice">Legal Advice</option>
+                            <option value="emergency_help">SOS & Immediate Help</option>
+                            <option value="survivor_stories">Survivor Stories</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="flex items-center space-x-2">
+                            <input id="post-anonymous" type="checkbox" class="rounded">
+                            <span class="text-sm">Post anonymously</span>
+                        </label>
+                    </div>
+                    <button id="create-post" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        Create Post
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Database Tests -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Database Tests</h2>
+                <div class="space-y-4">
+                    <button id="test-posts-table" class="w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mb-2">
+                        Test Posts Table
+                    </button>
+                    <button id="test-posts-view" class="w-full bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 mb-2">
+                        Test Posts View
+                    </button>
+                    <button id="test-rls-policies" class="w-full bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 mb-2">
+                        Test RLS Policies
+                    </button>
+                    <button id="load-posts" class="w-full bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600">
+                        Load Recent Posts
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Posts Display -->
+        <div class="bg-white p-6 rounded-lg shadow-md mt-8">
+            <h2 class="text-xl font-semibold mb-4">Recent Posts</h2>
+            <div id="posts-display" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script type="module">
+        import { initSupabase, supabase, getUser } from 'js/supabase.js';
+        initSupabase();
+
+        const testResults = document.getElementById('test-results');
+        const createPostBtn = document.getElementById('create-post');
+        const testPostsTableBtn = document.getElementById('test-posts-table');
+        const testPostsViewBtn = document.getElementById('test-posts-view');
+        const testRlsPoliciesBtn = document.getElementById('test-rls-policies');
+        const loadPostsBtn = document.getElementById('load-posts');
+        const postsDisplay = document.getElementById('posts-display');
+
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            testResults.appendChild(div);
+        }
+
+        async function runInitialTests() {
+            addResult('Starting forum posting tests...', 'info');
+            
+            try {
+                // Test 1: Check if user is authenticated
+                const user = await getUser();
+                if (!user) {
+                    addResult('❌ User not authenticated. Please login first.', 'error');
+                    addResult('💡 You need to be logged in to create posts', 'warning');
+                    return;
+                }
+                addResult('✅ User authenticated: ' + user.email, 'success');
+                
+                // Test 2: Check if posts table exists and is accessible
+                try {
+                    const { data: tableInfo, error: tableError } = await supabase
+                        .from('posts')
+                        .select('id, title, created_at')
+                        .limit(1);
+                    
+                    if (tableError) {
+                        addResult('❌ Posts table error: ' + tableError.message, 'error');
+                    } else {
+                        addResult('✅ Posts table accessible', 'success');
+                    }
+                } catch (e) {
+                    addResult('❌ Posts table check failed: ' + e.message, 'error');
+                }
+                
+                // Test 3: Check if posts_view exists
+                try {
+                    const { data: viewInfo, error: viewError } = await supabase
+                        .from('posts_view')
+                        .select('id, title, author_display_name')
+                        .limit(1);
+                    
+                    if (viewError) {
+                        addResult('❌ Posts view error: ' + viewError.message, 'error');
+                        addResult('💡 Run the fix_search_views.sql migration', 'warning');
+                    } else {
+                        addResult('✅ Posts view accessible', 'success');
+                    }
+                } catch (e) {
+                    addResult('❌ Posts view check failed: ' + e.message, 'error');
+                }
+                
+            } catch (e) {
+                addResult('❌ Test failed: ' + e.message, 'error');
+            }
+        }
+
+        // Create post test
+        createPostBtn.addEventListener('click', async () => {
+            const title = document.getElementById('post-title').value.trim();
+            const body = document.getElementById('post-body').value.trim();
+            const category = document.getElementById('post-category').value;
+            const isAnonymous = document.getElementById('post-anonymous').checked;
+            
+            if (!title || !body) {
+                addResult('❌ Please enter both title and content', 'error');
+                return;
+            }
+            
+            try {
+                const user = await getUser();
+                if (!user) {
+                    addResult('❌ User not authenticated', 'error');
+                    return;
+                }
+                
+                addResult('📤 Creating post...', 'info');
+                
+                // Create post
+                const { data, error } = await supabase.from('posts').insert({
+                    title: title,
+                    body: body,
+                    category: category || null,
+                    is_anonymous: isAnonymous,
+                    author_id: user.id
+                }).select('id, title, created_at').single();
+                
+                if (error) {
+                    addResult('❌ Create post error: ' + error.message, 'error');
+                    
+                    // Provide specific guidance based on error
+                    if (error.message.includes('RLS') || error.message.includes('policy')) {
+                        addResult('💡 This looks like a Row Level Security (RLS) policy issue', 'warning');
+                        addResult('💡 Run the fix_search_views.sql migration in your Supabase SQL Editor', 'warning');
+                    } else if (error.message.includes('posts_view')) {
+                        addResult('💡 The posts_view might not exist. Run the schema migration.', 'warning');
+                    }
+                } else {
+                    addResult('✅ Post created successfully! ID: ' + data.id, 'success');
+                    addResult('✅ Title: ' + data.title, 'success');
+                    addResult('✅ Created at: ' + new Date(data.created_at).toLocaleString(), 'success');
+                    
+                    // Clear form
+                    document.getElementById('post-title').value = '';
+                    document.getElementById('post-body').value = '';
+                    document.getElementById('post-category').value = '';
+                    document.getElementById('post-anonymous').checked = false;
+                    
+                    // Refresh posts display
+                    loadRecentPosts();
+                }
+            } catch (e) {
+                addResult('❌ Create post failed: ' + e.message, 'error');
+            }
+        });
+
+        // Test posts table
+        testPostsTableBtn.addEventListener('click', async () => {
+            try {
+                addResult('🔍 Testing posts table access...', 'info');
+                
+                const { data, error } = await supabase
+                    .from('posts')
+                    .select('id, title, author_id, created_at')
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+                
+                if (error) {
+                    addResult('❌ Posts table test failed: ' + error.message, 'error');
+                } else {
+                    addResult(`✅ Posts table test successful. Found ${data.length} posts.`, 'success');
+                    if (data.length > 0) {
+                        addResult('📋 Recent posts:', 'info');
+                        data.forEach(post => {
+                            addResult(`   - ${post.title} (ID: ${post.id})`, 'info');
+                        });
+                    }
+                }
+            } catch (e) {
+                addResult('❌ Posts table test failed: ' + e.message, 'error');
+            }
+        });
+
+        // Test posts view
+        testPostsViewBtn.addEventListener('click', async () => {
+            try {
+                addResult('🔍 Testing posts view access...', 'info');
+                
+                const { data, error } = await supabase
+                    .from('posts_view')
+                    .select('id, title, author_display_name, comments_count')
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+                
+                if (error) {
+                    addResult('❌ Posts view test failed: ' + error.message, 'error');
+                    addResult('💡 The posts_view might not exist. Run the fix_search_views.sql migration.', 'warning');
+                } else {
+                    addResult(`✅ Posts view test successful. Found ${data.length} posts.`, 'success');
+                    if (data.length > 0) {
+                        addResult('📋 Recent posts from view:', 'info');
+                        data.forEach(post => {
+                            addResult(`   - ${post.title} by ${post.author_display_name} (${post.comments_count} comments)`, 'info');
+                        });
+                    }
+                }
+            } catch (e) {
+                addResult('❌ Posts view test failed: ' + e.message, 'error');
+            }
+        });
+
+        // Test RLS policies
+        testRlsPoliciesBtn.addEventListener('click', async () => {
+            try {
+                addResult('🔍 Testing RLS policies...', 'info');
+                
+                const user = await getUser();
+                if (!user) {
+                    addResult('❌ Cannot test RLS without authentication', 'error');
+                    return;
+                }
+                
+                // Test insert permission
+                const { error: insertError } = await supabase
+                    .from('posts')
+                    .insert({
+                        title: 'RLS Test Post',
+                        body: 'This is a test post to check RLS policies',
+                        author_id: user.id
+                    });
+                
+                if (insertError) {
+                    addResult('❌ RLS insert test failed: ' + insertError.message, 'error');
+                } else {
+                    addResult('✅ RLS insert test successful', 'success');
+                    
+                    // Clean up test post
+                    await supabase
+                        .from('posts')
+                        .delete()
+                        .eq('title', 'RLS Test Post');
+                }
+            } catch (e) {
+                addResult('❌ RLS test failed: ' + e.message, 'error');
+            }
+        });
+
+        // Load recent posts
+        loadPostsBtn.addEventListener('click', loadRecentPosts);
+
+        async function loadRecentPosts() {
+            try {
+                addResult('📋 Loading recent posts...', 'info');
+                
+                const { data, error } = await supabase
+                    .from('posts')
+                    .select('id, title, body, category, is_anonymous, created_at, author_id')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                
+                if (error) {
+                    addResult('❌ Load posts error: ' + error.message, 'error');
+                    postsDisplay.innerHTML = '<p class="text-red-500">Failed to load posts</p>';
+                } else {
+                    addResult(`✅ Loaded ${data.length} posts`, 'success');
+                    displayPosts(data);
+                }
+            } catch (e) {
+                addResult('❌ Load posts failed: ' + e.message, 'error');
+            }
+        }
+
+        function displayPosts(posts) {
+            postsDisplay.innerHTML = '';
+            
+            if (posts.length === 0) {
+                postsDisplay.innerHTML = '<p class="text-gray-500">No posts found</p>';
+                return;
+            }
+            
+            posts.forEach(post => {
+                const div = document.createElement('div');
+                div.className = 'p-4 border rounded bg-gray-50';
+                div.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="font-semibold">${escapeHtml(post.title)}</h3>
+                            <p class="text-sm text-gray-600 mt-1">${escapeHtml(post.body).substring(0, 100)}...</p>
+                            <div class="flex items-center gap-2 mt-2">
+                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">${post.category || 'General'}</span>
+                                ${post.is_anonymous ? '<span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">Anonymous</span>' : ''}
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs text-gray-500">${new Date(post.created_at).toLocaleString()}</div>
+                            <div class="text-xs text-gray-400">ID: ${post.id}</div>
+                        </div>
+                    </div>
+                `;
+                postsDisplay.appendChild(div);
+            });
+        }
+
+        function escapeHtml(s = '') {
+            return s.replace(/[&<>"]+/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        }
+
+        // Run initial tests
+        runInitialTests();
+    </script>
+</body>
+</html>
