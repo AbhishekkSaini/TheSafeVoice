@@ -78,15 +78,30 @@
 
     <script src="js/config.js"></script>
     <script type="module">
+        // Prevent jQuery conflicts that might be causing the error
+        window.jQuery = undefined;
+        window.$ = undefined;
+        
         import { mountPrivacyAwareForum } from './js/forumPrivacy.js';
         import { mountSosButton } from './js/sos.js';
         import { mountAuthUiHooks } from './js/auth.js';
         import { replaceNativeAlerts } from './js/ui.js';
-        mountAuthUiHooks();
-        mountSosButton('#sosBtn');
-        window.lucide && window.lucide.createIcons();
-        mountPrivacyAwareForum();
-        replaceNativeAlerts();
+        
+        // Initialize with error handling
+        try {
+            mountAuthUiHooks();
+            mountSosButton('#sosBtn');
+            window.lucide && window.lucide.createIcons();
+            mountPrivacyAwareForum();
+            replaceNativeAlerts();
+        } catch (error) {
+            console.error('Forum initialization error:', error);
+            // Show error to user
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4';
+            errorDiv.textContent = 'Error loading forum. Please refresh the page.';
+            document.body.insertBefore(errorDiv, document.body.firstChild);
+        }
     </script>
 </body>
 </html>

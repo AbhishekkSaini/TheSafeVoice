@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-    <title>Direct Messages - SafeVoice</title>
+    <title>Real-time Chat - SafeVoice</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -16,57 +16,28 @@
         .offline { background: #9ca3af; }
         .chat-container { height: 500px; overflow-y: auto; }
         .status-bar { background: #f9fafb; border-bottom: 1px solid #e5e7eb; padding: 8px 16px; }
-        .unread-badge { background: #ef4444; color: white; border-radius: 50%; padding: 2px 6px; font-size: 12px; }
     </style>
 </head>
-<body class="bg-gray-100">
-    <!-- Navigation -->
-    <nav class="bg-white shadow-sm border-b">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <a href="index.html" class="text-xl font-bold text-gray-900">SafeVoice</a>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <a href="forum.html" class="text-gray-600 hover:text-gray-900">Forum</a>
-                    <a href="profile.html" class="text-gray-600 hover:text-gray-900">Profile</a>
-                    <button id="logoutBtn" class="text-gray-600 hover:text-gray-900">Logout</button>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <div class="max-w-7xl mx-auto p-4">
-        <h1 class="text-3xl font-bold mb-8">Direct Messages</h1>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8 text-center">Real-time Chat Demo</h1>
         
         <!-- Connection Status -->
         <div id="connection-status" class="bg-white p-4 rounded-lg shadow-md mb-6">
-            <div class="flex items-center justify-between">
-                <h2 class="text-lg font-semibold">Connection Status</h2>
-                <div id="status-info" class="text-sm text-gray-600">Initializing...</div>
-            </div>
+            <h2 class="text-lg font-semibold mb-2">Connection Status</h2>
+            <div id="status-info" class="text-sm text-gray-600">Initializing...</div>
         </div>
         
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <!-- Conversation List -->
-            <div class="lg:col-span-1">
-                <div class="bg-white rounded-lg shadow-md p-4">
-                    <h2 class="text-lg font-semibold mb-4">Conversations</h2>
-                    <div id="conversation-list" class="space-y-2">
-                        <div class="text-gray-500 text-sm">Loading conversations...</div>
-                    </div>
-                </div>
-            </div>
-            
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Chat Interface -->
-            <div class="lg:col-span-3">
+            <div class="lg:col-span-2">
                 <div class="bg-white rounded-lg shadow-md overflow-hidden">
                     <!-- Status Bar -->
                     <div class="status-bar">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center">
-                                <span class="online-indicator offline" id="user-status"></span>
-                                <span id="chat-user-name">Select a conversation to start chatting</span>
+                                <span class="online-indicator" id="user-status"></span>
+                                <span id="chat-user-name">Select a user to start chatting</span>
                             </div>
                             <div class="text-sm text-gray-500" id="typing-status"></div>
                         </div>
@@ -75,7 +46,7 @@
                     <!-- Chat Messages -->
                     <div id="chat-messages" class="chat-container p-4 space-y-2">
                         <div class="text-center text-gray-500 text-sm">
-                            Select a conversation from the list to start chatting
+                            Select a user from the list to start chatting
                         </div>
                     </div>
                     
@@ -100,41 +71,54 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- User List -->
+            <div class="bg-white rounded-lg shadow-md p-4">
+                <h2 class="text-lg font-semibold mb-4">Online Users</h2>
+                <div id="user-list" class="space-y-2">
+                    <div class="text-gray-500 text-sm">Loading users...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Debug Info -->
+        <div class="bg-white rounded-lg shadow-md p-4 mt-6">
+            <h2 class="text-lg font-semibold mb-2">Debug Information</h2>
+            <div id="debug-info" class="text-sm text-gray-600 space-y-1"></div>
         </div>
     </div>
 
     <script src="js/config.js"></script>
     <script type="module">
         import { initSupabase, supabase, getUser } from 'js/supabase.js';
-        import safeVoiceRealtimeChat from 'js/dm/realtimeChat.js';
+        import realtimeMessaging from 'js/realtime-messaging.js';
         
         initSupabase();
         
         let currentChatUser = null;
         let messageHistory = [];
-        let conversations = [];
         
         // DOM elements
         const statusInfo = document.getElementById('status-info');
         const chatMessages = document.getElementById('chat-messages');
         const messageForm = document.getElementById('message-form');
         const messageInput = document.getElementById('message-input');
-        const conversationList = document.getElementById('conversation-list');
+        const userList = document.getElementById('user-list');
         const chatUserName = document.getElementById('chat-user-name');
         const userStatus = document.getElementById('user-status');
         const typingStatus = document.getElementById('typing-status');
-        const logoutBtn = document.getElementById('logoutBtn');
+        const debugInfo = document.getElementById('debug-info');
         
         // Initialize real-time messaging
         async function initializeRealtime() {
             try {
                 statusInfo.textContent = 'Connecting to real-time service...';
                 
-                const success = await safeVoiceRealtimeChat.initialize();
+                const success = await realtimeMessaging.initialize();
                 if (success) {
                     statusInfo.innerHTML = '<span class="text-green-600">✅ Connected to real-time messaging</span>';
                     setupEventListeners();
-                    loadConversations();
+                    loadUsers();
                 } else {
                     statusInfo.innerHTML = '<span class="text-red-600">❌ Failed to connect</span>';
                 }
@@ -147,20 +131,16 @@
         // Setup event listeners
         function setupEventListeners() {
             // Listen for new messages
-            safeVoiceRealtimeChat.onMessage((message, type) => {
+            realtimeMessaging.onMessage((message, type) => {
                 console.log('Received message:', message, type);
-                
-                // Update conversation list with new message
-                updateConversationWithMessage(message);
-                
-                // If this message is from current chat user, display it
                 if (type === 'new' && message.sender_id === currentChatUser?.id) {
                     addMessageToChat(message, 'received');
                 }
+                updateDebugInfo();
             });
             
             // Listen for typing indicators
-            safeVoiceRealtimeChat.onTyping((typingData) => {
+            realtimeMessaging.onTyping((typingData) => {
                 if (typingData.user_id === currentChatUser?.id) {
                     if (typingData.is_typing) {
                         typingStatus.textContent = 'Typing...';
@@ -171,7 +151,7 @@
             });
             
             // Listen for online status changes
-            safeVoiceRealtimeChat.onOnlineStatus((onlineData) => {
+            realtimeMessaging.onOnlineStatus((onlineData) => {
                 updateUserOnlineStatus(onlineData);
             });
             
@@ -183,10 +163,10 @@
                 
                 try {
                     // Send typing indicator (stop typing)
-                    await safeVoiceRealtimeChat.sendTypingIndicator(currentChatUser.id, false);
+                    await realtimeMessaging.sendTypingIndicator(currentChatUser.id, false);
                     
                     // Send message
-                    const sentMessage = await safeVoiceRealtimeChat.sendMessage(currentChatUser.id, message);
+                    const sentMessage = await realtimeMessaging.sendMessage(currentChatUser.id, message);
                     addMessageToChat(sentMessage, 'sent');
                     
                     messageInput.value = '';
@@ -202,102 +182,65 @@
                 if (!currentChatUser) return;
                 
                 // Send typing indicator
-                await safeVoiceRealtimeChat.sendTypingIndicator(currentChatUser.id, true);
+                await realtimeMessaging.sendTypingIndicator(currentChatUser.id, true);
                 
                 // Clear previous timeout
                 clearTimeout(typingTimeout);
                 
                 // Stop typing indicator after 2 seconds
                 typingTimeout = setTimeout(async () => {
-                    await safeVoiceRealtimeChat.sendTypingIndicator(currentChatUser.id, false);
+                    await realtimeMessaging.sendTypingIndicator(currentChatUser.id, false);
                 }, 2000);
             });
-            
-            // Logout
-            logoutBtn.addEventListener('click', async () => {
-                await supabase.auth.signOut();
-                window.location.href = 'login.html';
-            });
         }
         
-        // Load conversations
-        async function loadConversations() {
+        // Load users
+        async function loadUsers() {
             try {
-                conversations = await safeVoiceRealtimeChat.getConversationList();
-                displayConversations(conversations);
-            } catch (error) {
-                console.error('Failed to load conversations:', error);
-                conversationList.innerHTML = '<div class="text-red-500">Failed to load conversations</div>';
-            }
-        }
-        
-        // Display conversations
-        function displayConversations(conversations) {
-            conversationList.innerHTML = '';
-            
-            if (conversations.length === 0) {
-                conversationList.innerHTML = '<div class="text-gray-500 text-sm">No conversations yet</div>';
-                return;
-            }
-            
-            conversations.forEach(conversation => {
-                const conversationDiv = document.createElement('div');
-                conversationDiv.className = 'flex items-center justify-between p-3 hover:bg-gray-50 rounded cursor-pointer border-b';
-                conversationDiv.innerHTML = `
-                    <div class="flex items-center flex-1">
-                        <span class="online-indicator offline" id="status-${conversation.other_user_id}"></span>
-                        <div class="ml-2 flex-1">
-                            <div class="font-medium">${conversation.other_user_name || 'User ' + conversation.other_user_id.slice(0, 8)}</div>
-                            <div class="text-sm text-gray-500 truncate">${conversation.last_message || 'No messages yet'}</div>
+                const { data: users, error } = await supabase
+                    .from('profiles')
+                    .select('id, display_name')
+                    .neq('id', (await getUser()).id);
+                
+                if (error) throw error;
+                
+                userList.innerHTML = '';
+                users.forEach(user => {
+                    const userDiv = document.createElement('div');
+                    userDiv.className = 'flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer';
+                    userDiv.innerHTML = `
+                        <div class="flex items-center">
+                            <span class="online-indicator offline" id="status-${user.id}"></span>
+                            <span>${user.display_name || 'User ' + user.id.slice(0, 8)}</span>
                         </div>
-                    </div>
-                    <div class="flex flex-col items-end">
-                        <div class="text-xs text-gray-400">${formatTime(conversation.last_message_time)}</div>
-                        ${conversation.unread_count > 0 ? `<div class="unread-badge">${conversation.unread_count}</div>` : ''}
-                    </div>
-                `;
-                conversationDiv.addEventListener('click', () => selectConversation(conversation));
-                conversationList.appendChild(conversationDiv);
+                    `;
+                    userDiv.addEventListener('click', () => selectUser(user));
+                    userList.appendChild(userDiv);
+                });
                 
-                // Check online status
-                checkUserOnlineStatus(conversation.other_user_id);
-            });
-        }
-        
-        // Update conversation with new message
-        function updateConversationWithMessage(message) {
-            const conversationIndex = conversations.findIndex(c => 
-                c.other_user_id === message.sender_id || c.other_user_id === message.receiver_id
-            );
-            
-            if (conversationIndex !== -1) {
-                const conversation = conversations[conversationIndex];
-                conversation.last_message = message.body;
-                conversation.last_message_time = message.created_at;
+                // Check online status for each user
+                users.forEach(checkUserOnlineStatus);
                 
-                if (message.sender_id !== currentChatUser?.id) {
-                    conversation.unread_count = (conversation.unread_count || 0) + 1;
-                }
-                
-                // Re-render conversation list
-                displayConversations(conversations);
+            } catch (error) {
+                console.error('Failed to load users:', error);
+                userList.innerHTML = '<div class="text-red-500">Failed to load users</div>';
             }
         }
         
         // Check if user is online
-        async function checkUserOnlineStatus(userId) {
+        async function checkUserOnlineStatus(user) {
             try {
                 const { data, error } = await supabase
                     .from('online_users')
                     .select('is_online, last_seen')
-                    .eq('user_id', userId)
+                    .eq('user_id', user.id)
                     .single();
                 
                 if (!error && data) {
                     const isOnline = data.is_online && 
                         new Date(data.last_seen) > new Date(Date.now() - 5 * 60 * 1000); // 5 minutes
                     
-                    const statusElement = document.getElementById(`status-${userId}`);
+                    const statusElement = document.getElementById(`status-${user.id}`);
                     if (statusElement) {
                         statusElement.className = `online-indicator ${isOnline ? 'online' : 'offline'}`;
                     }
@@ -307,41 +250,37 @@
             }
         }
         
-        // Select conversation
-        async function selectConversation(conversation) {
-            currentChatUser = {
-                id: conversation.other_user_id,
-                name: conversation.other_user_name || 'User ' + conversation.other_user_id.slice(0, 8)
-            };
-            
-            safeVoiceRealtimeChat.setCurrentChatUser(currentChatUser);
-            
-            chatUserName.textContent = currentChatUser.name;
-            userStatus.className = `online-indicator ${document.getElementById(`status-${currentChatUser.id}`).classList.contains('online') ? 'online' : 'offline'}`;
+        // Select user to chat with
+        async function selectUser(user) {
+            currentChatUser = user;
+            chatUserName.textContent = user.display_name || 'User ' + user.id.slice(0, 8);
+            userStatus.className = `online-indicator ${document.getElementById(`status-${user.id}`).classList.contains('online') ? 'online' : 'offline'}`;
             
             // Enable message input
             messageInput.disabled = false;
             messageForm.querySelector('button').disabled = false;
             
             // Load message history
-            await loadMessageHistory(currentChatUser.id);
+            await loadMessageHistory(user.id);
             
             // Mark messages as read
-            await safeVoiceRealtimeChat.markMessagesAsRead(currentChatUser.id);
-            
-            // Clear unread count for this conversation
-            const conversationIndex = conversations.findIndex(c => c.other_user_id === currentChatUser.id);
-            if (conversationIndex !== -1) {
-                conversations[conversationIndex].unread_count = 0;
-                displayConversations(conversations);
-            }
+            await realtimeMessaging.markMessagesAsRead(user.id);
         }
         
         // Load message history
         async function loadMessageHistory(userId) {
             try {
-                messageHistory = await safeVoiceRealtimeChat.getMessageHistory(userId, 50, 0);
-                displayMessages(messageHistory);
+                const { data: messages, error } = await supabase.rpc('get_message_history', {
+                    other_user_id: userId,
+                    limit_count: 50,
+                    offset_count: 0
+                });
+                
+                if (error) throw error;
+                
+                messageHistory = messages;
+                displayMessages(messages);
+                
             } catch (error) {
                 console.error('Failed to load message history:', error);
                 chatMessages.innerHTML = '<div class="text-red-500">Failed to load messages</div>';
@@ -362,9 +301,9 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = `message message-${type}`;
             messageDiv.innerHTML = `
-                <div class="font-medium text-xs mb-1">${type === 'sent' ? 'You' : (currentChatUser?.name || 'User')}</div>
+                <div class="font-medium text-xs mb-1">${type === 'sent' ? 'You' : (currentChatUser?.display_name || 'User')}</div>
                 <div>${escapeHtml(message.body)}</div>
-                <div class="text-xs opacity-70 mt-1">${formatTime(message.created_at)}</div>
+                <div class="text-xs opacity-70 mt-1">${new Date(message.created_at).toLocaleTimeString()}</div>
             `;
             chatMessages.appendChild(messageDiv);
             
@@ -389,20 +328,19 @@
             }
         }
         
-        // Utility functions
-        function formatTime(timestamp) {
-            if (!timestamp) return '';
-            const date = new Date(timestamp);
-            const now = new Date();
-            const diff = now - date;
-            
-            if (diff < 24 * 60 * 60 * 1000) {
-                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            } else {
-                return date.toLocaleDateString();
-            }
+        // Update debug info
+        function updateDebugInfo() {
+            const status = realtimeMessaging.getConnectionStatus();
+            debugInfo.innerHTML = `
+                <div>Connected: ${status.isConnected ? 'Yes' : 'No'}</div>
+                <div>User ID: ${status.currentUser || 'None'}</div>
+                <div>Active subscriptions: ${status.activeSubscriptions}</div>
+                <div>Current chat user: ${currentChatUser?.id || 'None'}</div>
+                <div>Messages in history: ${messageHistory.length}</div>
+            `;
         }
         
+        // Utility function
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
@@ -411,8 +349,9 @@
         
         // Initialize
         initializeRealtime();
+        
+        // Update debug info periodically
+        setInterval(updateDebugInfo, 5000);
     </script>
 </body>
 </html>
-
-

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+    <title>Debug Forum Posting - SafeVoice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .debug-log { padding: 8px; margin: 4px 0; border-radius: 4px; font-family: monospace; font-size: 12px; }
+        .debug-info { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+        .debug-error { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+        .debug-success { background: #e8f5e8; color: #2e7d32; border: 1px solid #c8e6c9; }
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8 text-center">Debug Forum Posting</h1>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Debug Form -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Test Post Creation</h2>
+                <form id="debug-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Title:</label>
+                        <input id="debug-title" type="text" class="w-full p-2 border rounded" placeholder="Test title">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Content:</label>
+                        <textarea id="debug-body" class="w-full p-2 border rounded" rows="4" placeholder="Test content"></textarea>
+                    </div>
+                    <div>
+                        <label class="flex items-center space-x-2">
+                            <input id="debug-anonymous" type="checkbox" class="rounded">
+                            <span class="text-sm">Post anonymously</span>
+                        </label>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        Create Test Post
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Debug Logs -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Debug Logs</h2>
+                <div id="debug-logs" class="space-y-2 max-h-96 overflow-y-auto"></div>
+                <button id="clear-logs" class="mt-4 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+                    Clear Logs
+                </button>
+            </div>
+        </div>
+        
+        <!-- Status Information -->
+        <div class="bg-white p-6 rounded-lg shadow-md mt-8">
+            <h2 class="text-xl font-semibold mb-4">System Status</h2>
+            <div id="status-info" class="space-y-2"></div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script type="module">
+        // Prevent jQuery conflicts by using pure JavaScript
+        window.jQuery = undefined;
+        window.$ = undefined;
+        
+        import { initSupabase, supabase, getUser } from 'js/supabase.js';
+        initSupabase();
+
+        const debugLogs = document.getElementById('debug-logs');
+        const statusInfo = document.getElementById('status-info');
+        const debugForm = document.getElementById('debug-form');
+        const clearLogsBtn = document.getElementById('clear-logs');
+
+        function addLog(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `debug-log debug-${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            debugLogs.appendChild(div);
+            debugLogs.scrollTop = debugLogs.scrollHeight;
+        }
+
+        function addStatus(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `p-3 rounded ${type === 'error' ? 'bg-red-100 text-red-700' : type === 'success' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`;
+            div.textContent = message;
+            statusInfo.appendChild(div);
+        }
+
+        async function checkSystemStatus() {
+            addStatus('Checking system status...', 'info');
+            
+            try {
+                // Check authentication
+                const user = await getUser();
+                if (user) {
+                    addStatus(`✅ Authenticated as: ${user.email}`, 'success');
+                } else {
+                    addStatus('❌ Not authenticated - please login first', 'error');
+                    return;
+                }
+                
+                // Check posts table
+                try {
+                    const { data, error } = await supabase
+                        .from('posts')
+                        .select('id')
+                        .limit(1);
+                    
+                    if (error) {
+                        addStatus(`❌ Posts table error: ${error.message}`, 'error');
+                    } else {
+                        addStatus('✅ Posts table accessible', 'success');
+                    }
+                } catch (e) {
+                    addStatus(`❌ Posts table check failed: ${e.message}`, 'error');
+                }
+                
+                // Check posts_view
+                try {
+                    const { data, error } = await supabase
+                        .from('posts_view')
+                        .select('id')
+                        .limit(1);
+                    
+                    if (error) {
+                        addStatus(`❌ Posts view error: ${error.message}`, 'error');
+                    } else {
+                        addStatus('✅ Posts view accessible', 'success');
+                    }
+                } catch (e) {
+                    addStatus(`❌ Posts view check failed: ${e.message}`, 'error');
+                }
+                
+            } catch (e) {
+                addStatus(`❌ System check failed: ${e.message}`, 'error');
+            }
+        }
+
+        // Form submission handler with error prevention
+        if (debugForm) {
+            debugForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                addLog('Form submission intercepted', 'info');
+                
+                const title = document.getElementById('debug-title')?.value?.trim();
+                const body = document.getElementById('debug-body')?.value?.trim();
+                const isAnonymous = document.getElementById('debug-anonymous')?.checked;
+                
+                if (!title || !body) {
+                    addLog('❌ Validation failed: Missing title or content', 'error');
+                    return;
+                }
+                
+                addLog(`Creating post: "${title}" (${isAnonymous ? 'anonymous' : 'named'})`, 'info');
+                
+                try {
+                    const user = await getUser();
+                    if (!user) {
+                        addLog('❌ User not authenticated', 'error');
+                        return;
+                    }
+                    
+                    addLog(`User ID: ${user.id}`, 'info');
+                    
+                    const { data, error } = await supabase.from('posts').insert({
+                        title,
+                        body,
+                        category: 'safety_tips',
+                        is_anonymous: isAnonymous,
+                        author_id: user.id
+                    }).select('id, title, created_at').single();
+                    
+                    if (error) {
+                        addLog(`❌ Database error: ${error.message}`, 'error');
+                        addLog(`Error details: ${JSON.stringify(error)}`, 'error');
+                    } else {
+                        addLog(`✅ Post created successfully! ID: ${data.id}`, 'success');
+                        addLog(`Post details: ${JSON.stringify(data)}`, 'success');
+                        
+                        // Clear form
+                        debugForm.reset();
+                    }
+                    
+                } catch (err) {
+                    addLog(`❌ Exception: ${err.message}`, 'error');
+                    addLog(`Stack trace: ${err.stack}`, 'error');
+                }
+            });
+        } else {
+            addLog('❌ Debug form not found', 'error');
+        }
+
+        // Clear logs
+        if (clearLogsBtn) {
+            clearLogsBtn.addEventListener('click', () => {
+                debugLogs.innerHTML = '';
+            });
+        }
+
+        // Check for common issues
+        function checkForCommonIssues() {
+            addLog('Checking for common issues...', 'info');
+            
+            // Check if jQuery is loaded (this might be causing the error)
+            if (window.jQuery || window.$) {
+                addLog('⚠️ jQuery detected - this might cause conflicts', 'error');
+                addLog('jQuery version: ' + (window.jQuery?.fn?.jquery || 'unknown'), 'error');
+            } else {
+                addLog('✅ No jQuery detected - good for modern JS', 'success');
+            }
+            
+            // Check if Supabase is loaded
+            if (!window.supabase) {
+                addLog('❌ Supabase not loaded', 'error');
+            } else {
+                addLog('✅ Supabase loaded', 'success');
+            }
+            
+            // Check if config is available
+            if (!window.SAFEVOICE_CONFIG) {
+                addLog('❌ SAFEVOICE_CONFIG not found', 'error');
+            } else {
+                addLog('✅ SAFEVOICE_CONFIG available', 'success');
+            }
+            
+            // Check form elements
+            const titleEl = document.getElementById('debug-title');
+            const bodyEl = document.getElementById('debug-body');
+            const formEl = document.getElementById('debug-form');
+            
+            if (!titleEl) addLog('❌ Title input not found', 'error');
+            if (!bodyEl) addLog('❌ Body textarea not found', 'error');
+            if (!formEl) addLog('❌ Form not found', 'error');
+            
+            if (titleEl && bodyEl && formEl) {
+                addLog('✅ All form elements found', 'success');
+            }
+        }
+
+        // Initialize with error handling
+        try {
+            addLog('Debug page loaded', 'info');
+            checkForCommonIssues();
+            checkSystemStatus();
+        } catch (error) {
+            addLog(`❌ Initialization error: ${error.message}`, 'error');
+            addLog(`Stack: ${error.stack}`, 'error');
+        }
+    </script>
+</body>
+</html>

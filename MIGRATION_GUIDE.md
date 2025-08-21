@@ -5,7 +5,7 @@
 1. **Messaging System**: The database schema is missing required columns and tables that the messaging functions expect.
 2. **Forum Posting**: The forum posting functionality is not working due to database schema and RLS policy issues.
 
-## Required Migrations
+## Required Migrations 
 
 You need to run two migrations to fix both the messaging and forum posting functionality:
 
@@ -117,7 +117,18 @@ Once you've run both migrations:
 
 If you still have issues after running the migration:
 
-1. Check the browser console for any JavaScript errors
-2. Verify that the Supabase configuration in `js/config.js` is correct
-3. Make sure you're authenticated (logged in) before testing
-4. Check the test page diagnostics for specific error messages
+1. **Page Refresh Issue**: If the page refreshes when posting and nothing happens:
+   - Open `web/public/debug-forum-posting.html` to test posting functionality
+   - Check the browser console for JavaScript errors
+   - Make sure you're logged in before trying to post
+
+2. **Common Issues**:
+   - Check the browser console for any JavaScript errors
+   - Verify that the Supabase configuration in `js/config.js` is correct
+   - Make sure you're authenticated (logged in) before testing
+   - Check the test page diagnostics for specific error messages
+
+3. **Form Submission Issues**:
+   - The form should NOT refresh the page when submitted
+   - If it does refresh, there's likely a JavaScript error preventing the event handler from working
+   - Use the debug page to identify the specific issue

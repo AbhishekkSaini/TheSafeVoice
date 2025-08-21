@@ -221,32 +221,107 @@ export async function mountPrivacyAwareForum() {
             const bodyEl = document.getElementById('composer-body');
             const anonToggle = document.getElementById('composer-anon');
             const catSelect = document.getElementById('composer-category');
+            
+            // Set up category options if not already set
             if (catSelect && !catSelect.options.length) {
                 const fallbackCats = ['safety_tips', 'legal_advice', 'emergency_help', 'survivor_stories'];
                 catSelect.innerHTML = fallbackCats.map(c => `<option value="${c}">${c.replace(/_/g, ' ')}</option>`).join('');
             }
+            
+            // Remove required attributes to prevent browser validation from interfering
+            if (titleEl) titleEl.removeAttribute('required');
+            if (bodyEl) bodyEl.removeAttribute('required');
+            
+            // Add submit event listener with proper error handling
             postComposer.addEventListener('submit', async (e) => {
-                e.preventDefault();
+                e.preventDefault(); // Prevent form submission
+                e.stopPropagation(); // Stop event bubbling
+                
+                console.log('Form submission intercepted'); // Debug log
+                
                 const title = titleEl?.value?.trim();
                 const body = bodyEl?.value?.trim();
                 const category = catSelect?.value || null;
-                if (!title || !body) { alert('Please provide a title and content'); return; }
+                const isAnonymous = !!anonToggle?.checked;
+                
+                // Client-side validation
+                if (!title || !body) { 
+                    alert('Please provide both a title and content for your post'); 
+                    return; 
+                }
+                
+                // Disable submit button to prevent double submission
+                const submitBtn = postComposer.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Posting...';
+                }
+                
                 try {
+                    console.log('Creating post with data:', { title, body, category, isAnonymous }); // Debug log
+                    
                     const user = await getUser();
-                    const { error } = await supabase.from('posts').insert({
+                    if (!user) {
+                        alert('You must be logged in to create posts');
+                        return;
+                    }
+                    
+                    const { data, error } = await supabase.from('posts').insert({
                         title,
                         body,
                         category,
-                        is_anonymous: !!anonToggle?.checked,
-                        author_id: user?.id || null
-                    });
-                    if (error) { alert(error.message); return; }
+                        is_anonymous: isAnonymous,
+                        author_id: user.id
+                    }).select('id, title, created_at').single();
+                    
+                    if (error) { 
+                        console.error('Post creation error:', error); // Debug log
+                        alert('Failed to create post: ' + error.message); 
+                        return; 
+                    }
+                    
+                    console.log('Post created successfully:', data); // Debug log
+                    
+                    // Clear form
                     postComposer.reset();
+                    
+                    // Show success message
+                    const successMsg = document.createElement('div');
+                    successMsg.className = 'bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4';
+                    successMsg.textContent = 'Post created successfully!';
+                    postComposer.parentNode.insertBefore(successMsg, postComposer);
+                    
+                    // Remove success message after 3 seconds
+                    setTimeout(() => {
+                        if (successMsg.parentNode) {
+                            successMsg.parentNode.removeChild(successMsg);
+                        }
+                    }, 3000);
+                    
+                    // Refresh the forum feed
                     await loadForumData(category);
+                    
                 } catch (err) {
-                    alert(err?.message || 'Failed to create post');
+                    console.error('Post creation exception:', err); // Debug log
+                    alert('Failed to create post: ' + (err?.message || 'Unknown error'));
+                } finally {
+                    // Re-enable submit button
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Post';
+                    }
                 }
             });
+            
+            // Also prevent form submission on Enter key in textarea
+            if (bodyEl) {
+                bodyEl.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && e.ctrlKey) {
+                        e.preventDefault();
+                        postComposer.dispatchEvent(new Event('submit'));
+                    }
+                });
+            }
         }
     }
     
